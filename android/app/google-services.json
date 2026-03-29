@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "955892392641",
+    "project_id": "team-tracker-7e8a9",
+    "storage_bucket": "team-tracker-7e8a9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:955892392641:android:63eb51f73b67c9dfd5aa40",
+        "android_client_info": {
+          "package_name": "com.basketball.team_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUvVn_Fuwif7HtmN6mkJqKF2jNb3ZSEIw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,31 @@
+[debug] [2026-03-28T14:51:33.520Z] ----------------------------------------------------------------------
+[debug] [2026-03-28T14:51:33.522Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Wilson Laptop\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --project team-tracker
+[debug] [2026-03-28T14:51:33.522Z] CLI Version:   15.12.0
+[debug] [2026-03-28T14:51:33.522Z] Platform:      win32
+[debug] [2026-03-28T14:51:33.522Z] Node Version:  v24.14.0
+[debug] [2026-03-28T14:51:33.522Z] Time:          Sat Mar 28 2026 22:51:33 GMT+0800 (香港標準時間)
+[debug] [2026-03-28T14:51:33.522Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-28T14:51:40.895Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-28T14:51:40.897Z] > authorizing via signed-in user (cleverpong@gmail.com)
+[debug] [2026-03-28T14:51:40.898Z] [iam] checking project team-tracker for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-03-28T14:51:40.902Z] Checked if tokens are valid: true, expires at: 1774713047840
+[debug] [2026-03-28T14:51:40.902Z] Checked if tokens are valid: true, expires at: 1774713047840
+[debug] [2026-03-28T14:51:40.905Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/team-tracker:testIamPermissions [none]
+[debug] [2026-03-28T14:51:40.905Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/team-tracker:testIamPermissions  x-goog-user-project=team-tracker
+[debug] [2026-03-28T14:51:40.906Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/team-tracker:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-03-28T14:51:41.936Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/team-tracker:testIamPermissions 403
+[debug] [2026-03-28T14:51:41.937Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/team-tracker:testIamPermissions {"error":{"code":403,"message":"Caller does not have required permission to use project team-tracker. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam?project=team-tracker and then retry. Propagation of the new permission may take a few minutes.","status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"USER_PROJECT_DENIED","domain":"googleapis.com","metadata":{"containerInfo":"team-tracker","consoleUrl":"https://console.developers.google.com/iam-admin/iam?project=team-tracker","consumer":"projects/team-tracker","service":"cloudresourcemanager.googleapis.com"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"Caller does not have required permission to use project team-tracker. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam?project=team-tracker and then retry. Propagation of the new permission may take a few minutes."},{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Google developer console IAM admin","url":"https://console.developers.google.com/iam-admin/iam?project=team-tracker"}]}]}}
+[debug] [2026-03-28T14:51:41.939Z] [iam] error while checking permissions, command may fail: Request to https://cloudresourcemanager.googleapis.com/v1/projects/team-tracker:testIamPermissions had HTTP Error: 403, Caller does not have required permission to use project team-tracker. Grant the caller the roles/serviceusage.serviceUsageConsumer role, or a custom role with the serviceusage.services.use permission, by visiting https://console.developers.google.com/iam-admin/iam?project=team-tracker and then retry. Propagation of the new permission may take a few minutes.
+[debug] [2026-03-28T14:51:41.942Z] Checked if tokens are valid: true, expires at: 1774713047840
+[debug] [2026-03-28T14:51:41.942Z] Checked if tokens are valid: true, expires at: 1774713047840
+[debug] [2026-03-28T14:51:41.943Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/team-tracker [none]
+[debug] [2026-03-28T14:51:42.328Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/team-tracker 403
+[debug] [2026-03-28T14:51:42.328Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/team-tracker {"error":{"code":403,"message":"The caller does not have permission","status":"PERMISSION_DENIED"}}
+[debug] [2026-03-28T14:51:42.328Z] Request to https://firebase.googleapis.com/v1beta1/projects/team-tracker had HTTP Error: 403, The caller does not have permission
+[debug] [2026-03-28T14:51:42.333Z] FirebaseError: Request to https://firebase.googleapis.com/v1beta1/projects/team-tracker had HTTP Error: 403, The caller does not have permission
+    at responseToError (C:\Users\Wilson Laptop\AppData\Roaming\npm\node_modules\firebase-tools\lib\responseToError.js:53:12)
+    at RetryOperation._fn (C:\Users\Wilson Laptop\AppData\Roaming\npm\node_modules\firebase-tools\lib\apiv2.js:333:77)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+[error] 
+[error] Error: Failed to get Firebase project team-tracker. Please make sure the project exists and your account has permission to access it.
