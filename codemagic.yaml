@@ -3,7 +3,7 @@ workflows:
     name: iOS Workflow
     max_build_duration: 120
     integrations:
-      app_store_connect: WILSON PONG
+      app_store_connect: Wilson
     environment:
       flutter: stable
       xcode: latest
