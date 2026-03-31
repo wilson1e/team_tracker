@@ -33,4 +33,21 @@ workflows:
 
   android-workflow:
     name: Android Workflow
-    # ... 保持你原本的 Android 部分不變 ...
+    max_build_duration: 120
+    environment:
+      flutter: stable
+      groups:
+        - google_play
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          rm -f pubspec.lock
+          flutter packages pub get
+      - name: Build AAB
+        script: flutter build appbundle --release
+    artifacts:
+      - build/app/outputs/bundle/release/*.aab
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
