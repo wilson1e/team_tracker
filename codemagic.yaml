@@ -2,8 +2,6 @@ workflows:
   ios-workflow:
     name: iOS Workflow
     max_build_duration: 120
-    integrations:
-      app_store_connect: WILSON PONG
     environment:
       flutter: stable
       xcode: latest
@@ -23,9 +21,9 @@ workflows:
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
+      email:
+        recipients:
+          - [email]
   android-workflow:
     name: Android Workflow
     max_build_duration: 120
