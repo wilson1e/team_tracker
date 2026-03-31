@@ -17,7 +17,9 @@ workflows:
           rm -f pubspec.lock
           flutter packages pub get
       - name: Build IPA
-        script: flutter build ipa --release
+        script: |
+          flutter build ipa --release \
+            --export-method=app-store
     artifacts:
       - build/ios/ipa/*.ipa
     publishing:
