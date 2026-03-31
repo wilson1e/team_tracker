@@ -11,6 +11,7 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.basketball.team.tracker
+        apple_team_id: 4UN4YRLR3U
     scripts:
       - name: Get Flutter packages
         script: |
