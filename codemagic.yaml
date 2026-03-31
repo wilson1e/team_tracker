@@ -22,7 +22,7 @@ workflows:
       - build/ios/ipa/*.ipa
     publishing:
       app_store_connect:
-        api_key: WILSON PONG
+        auth: integration
         submit_to_testflight: true
   android-workflow:
     name: Android Workflow
