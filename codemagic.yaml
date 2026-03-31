@@ -16,9 +16,6 @@ workflows:
         script: |
           rm -f pubspec.lock
           flutter packages pub get
-      - name: Install Pods
-        script: |
-          cd ios && pod install
       - name: Build IPA
         script: |
           flutter build ipa --release \
