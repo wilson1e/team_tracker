@@ -13,7 +13,9 @@ workflows:
         bundle_identifier: com.basketball.team.tracker
     scripts:
       - name: Get Flutter packages
-        script: flutter packages pub get
+        script: |
+          rm -f pubspec.lock
+          flutter packages pub get
       - name: Build IPA
         script: flutter build ipa --release
     artifacts:
@@ -27,7 +29,9 @@ workflows:
         - google_play
     scripts:
       - name: Get Flutter packages
-        script: flutter packages pub get
+        script: |
+          rm -f pubspec.lock
+          flutter packages pub get
       - name: Build AAB
         script: flutter build appbundle --release
     artifacts:
