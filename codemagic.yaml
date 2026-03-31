@@ -2,16 +2,18 @@ workflows:
   ios-workflow:
     name: iOS Workflow
     max_build_duration: 120
+    integrations:
+      developer_portal: WILSON PONG
     environment:
       flutter: stable
       xcode: latest
       cocoapods: default
       vars:
         BUNDLE_ID: "com.basketball.team.tracker"
-      # --- 修改這裡 ---
       ios_signing:
-        distribution_type: app_store  # 指定發佈類型
-        bundle_identifier: com.basketball.team.tracker # 必須與 Apple Portal 一致
+        distribution_type: app_store
+        bundle_identifier: com.basketball.team.tracker
+        team_id: 4UN4YRLR3U
     scripts:
       - name: Get Flutter packages
         script: |
