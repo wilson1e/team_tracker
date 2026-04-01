@@ -1,0 +1,276 @@
+import 'package:flutter/material.dart';
+import '../../../services/data/player_service.dart';
+
+/// 球員管理 Tab
+/// 從 team_detail_page.dart 拆分出來
+class PlayersTab extends StatefulWidget {
+  final String teamName;
+  final String? inviteCode;
+  final String? ownerUid;
+  final bool isJoined;
+  final String? userRole;
+
+  const PlayersTab({
+    super.key,
+    required this.teamName,
+    this.inviteCode,
+    this.ownerUid,
+    this.isJoined = false,
+    this.userRole,
+  });
+
+  @override
+  State<PlayersTab> createState() => _PlayersTabState();
+}
+
+class _PlayersTabState extends State<PlayersTab> {
+  final _nameCtrl = TextEditingController();
+  final _numberCtrl = TextEditingController();
+  final _heightCtrl = TextEditingController();
+  final _weightCtrl = TextEditingController();
+  String _selectedPosition = '';
+  List<Map<String, dynamic>> _players = [];
+
+  final List<String> _positions = ['PG', 'SG', 'SF', 'PF', 'C'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlayers();
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _numberCtrl.dispose();
+    _heightCtrl.dispose();
+    _weightCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPlayers() async {
+    final service = PlayerService(
+      teamName: widget.teamName,
+      inviteCode: widget.inviteCode,
+      ownerUid: widget.ownerUid,
+    );
+    final players = await service.loadFromCloud();
+    if (mounted) setState(() => _players = players);
+  }
+
+  Future<void> _savePlayers() async {
+    final service = PlayerService(
+      teamName: widget.teamName,
+      inviteCode: widget.inviteCode,
+      ownerUid: widget.ownerUid,
+    );
+    await service.syncToCloud(_players);
+  }
+
+  void _addPlayer() {
+    if (_nameCtrl.text.isEmpty) {
+      _showMessage('請輸入球員名稱', isError: true);
+      return;
+    }
+
+    final number = int.tryParse(_numberCtrl.text) ?? 0;
+    if (number < 0 || number > 99) {
+      _showMessage('球衣號碼必須在 0-99 之間', isError: true);
+      return;
+    }
+
+    setState(() {
+      _players.add({
+        'name': _nameCtrl.text.trim(),
+        'number': number,
+        'position': _selectedPosition.isEmpty ? '-' : _selectedPosition,
+        'height': int.tryParse(_heightCtrl.text) ?? 0,
+        'weight': int.tryParse(_weightCtrl.text) ?? 0,
+      });
+      _selectedPosition = '';
+    });
+
+    _savePlayers();
+    _nameCtrl.clear();
+    _numberCtrl.clear();
+    _heightCtrl.clear();
+    _weightCtrl.clear();
+    _showMessage('球員已新增');
+  }
+
+  void _showMessage(String msg, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? Colors.red : null,
+      ),
+    );
+  }
+
+  Color _positionColor(String pos) {
+    switch (pos) {
+      case 'PG': return const Color(0xFF4FC3F7);
+      case 'SG': return const Color(0xFF4DB6AC);
+      case 'SF': return const Color(0xFF81C784);
+      case 'PF': return const Color(0xFFFFB74D);
+      case 'C': return const Color(0xFFCE93D8);
+      default: return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canEdit = !widget.isJoined || widget.userRole == 'editor';
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (canEdit) _buildAddPlayerForm(),
+          const SizedBox(height: 16),
+          if (_players.isEmpty)
+            _buildEmptyState()
+          else
+            ..._players.asMap().entries.map((entry) =>
+              _buildPlayerCard(entry.key, entry.value)
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddPlayerForm() {
+    return Card(
+      elevation: 2,
+      color: const Color(0xFF1A1A2E),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('新增球員',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _nameCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: _inputDeco('名稱'),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: TextField(
+                  controller: _numberCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  keyboardType: TextInputType.number,
+                  decoration: _inputDeco('號碼'),
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: TextField(
+                  controller: _heightCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  keyboardType: TextInputType.number,
+                  decoration: _inputDeco('身高 (cm)'),
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: TextField(
+                  controller: _weightCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  keyboardType: TextInputType.number,
+                  decoration: _inputDeco('體重 (kg)'),
+                )),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: _positions.map((pos) => ChoiceChip(
+                label: Text(pos),
+                selected: _selectedPosition == pos,
+                selectedColor: Colors.orange,
+                onSelected: (s) => setState(() => _selectedPosition = s ? pos : ''),
+              )).toList(),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _addPlayer,
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                child: const Text('新增'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.people_outline, size: 64, color: Colors.white24),
+            const SizedBox(height: 16),
+            Text('未有球員', style: const TextStyle(color: Colors.white54, fontSize: 16)),
+            const SizedBox(height: 6),
+            Text('在上方新增你的第一位球員', style: const TextStyle(color: Colors.white30, fontSize: 13)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayerCard(int index, Map<String, dynamic> player) {
+    final pos = (player['position'] ?? '-') as String;
+    final posColor = _positionColor(pos);
+
+    return Card(
+      color: const Color(0xFF1A1A2E),
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: posColor.withOpacity(0.12),
+            border: Border.all(color: posColor.withOpacity(0.5), width: 1.5),
+          ),
+          child: Center(
+            child: Text('${player['number']}',
+                style: TextStyle(color: posColor, fontWeight: FontWeight.bold)),
+          ),
+        ),
+        title: Text(player['name'], style: const TextStyle(color: Colors.white)),
+        subtitle: Text('${player['height']} cm · ${player['weight']} kg',
+            style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        trailing: pos != '-' ? Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: posColor.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(pos, style: TextStyle(color: posColor, fontWeight: FontWeight.bold)),
+        ) : null,
+      ),
+    );
+  }
+
+  InputDecoration _inputDeco(String label) => InputDecoration(
+    labelText: label,
+    labelStyle: const TextStyle(color: Colors.white70),
+    filled: true,
+    fillColor: Colors.white.withOpacity(0.1),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Colors.orange),
+    ),
+  );
+}

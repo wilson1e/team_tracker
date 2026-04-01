@@ -8,6 +8,9 @@ import 'notification_service.dart';
 import 'team_settings_page.dart';
 import 'team_members_page.dart';
 import 'calendar_service.dart';
+import 'pages/team_detail/tabs/players_tab.dart';
+import 'services/export/export_service.dart';
+import 'pages/photo_gallery_page.dart';
 
 // ── Color serialization helpers ───────────────────────────────────
 int _colorToInt(Color? c) => c?.value ?? 0;
@@ -457,6 +460,48 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
     ));
   }
 
+  Future<void> _exportReport() async {
+    try {
+      _showMessage('正在匯出報表...');
+      final filePath = await ExportService.exportAttendanceReport(
+        teamName: widget.teamName,
+        players: _players,
+        matches: _matches,
+        training: _training,
+      );
+
+      if (!mounted) return;
+
+      // 顯示選擇對話框
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A2E),
+          title: const Text('報表已生成', style: TextStyle(color: Colors.white)),
+          content: Text(
+            '檔案已儲存至:\n${filePath.split('/').last}',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('關閉', style: TextStyle(color: Colors.white70)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await ExportService.shareReport(filePath, widget.teamName);
+              },
+              child: const Text('分享', style: TextStyle(color: Colors.orange)),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      _showMessage('匯出失敗: $e', isError: true);
+    }
+  }
+
   Future<bool> _confirmDelete(String label) async {
     return await showDialog<bool>(
           context: context,
@@ -602,13 +647,35 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
       _showMessage('請輸入球員名稱', isError: true);
       return;
     }
+
+    // Validate number (0-99)
+    final number = int.tryParse(_numberCtrl.text) ?? 0;
+    if (number < 0 || number > 99) {
+      _showMessage('球衣號碼必須在 0-99 之間', isError: true);
+      return;
+    }
+
+    // Validate height (100-250 cm)
+    final height = int.tryParse(_heightCtrl.text) ?? 0;
+    if (height != 0 && (height < 100 || height > 250)) {
+      _showMessage('身高必須在 100-250 cm 之間', isError: true);
+      return;
+    }
+
+    // Validate weight (30-200 kg)
+    final weight = int.tryParse(_weightCtrl.text) ?? 0;
+    if (weight != 0 && (weight < 30 || weight > 200)) {
+      _showMessage('體重必須在 30-200 kg 之間', isError: true);
+      return;
+    }
+
     setState(() {
       _players.add({
         'name':     _nameCtrl.text.trim(),
-        'number':   int.tryParse(_numberCtrl.text) ?? 0,
+        'number':   number,
         'position': _selectedPosition.isEmpty ? '-' : _selectedPosition,
-        'height':   int.tryParse(_heightCtrl.text) ?? 0,
-        'weight':   int.tryParse(_weightCtrl.text) ?? 0,
+        'height':   height,
+        'weight':   weight,
       });
       _selectedPosition = '';
     });
@@ -1958,6 +2025,28 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
           backgroundColor: const Color(0xFF1A1A2E),
           foregroundColor: Colors.white,
           actions: [
+            IconButton(
+              icon: const Icon(Icons.photo_library),
+              tooltip: '照片相簿',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PhotoGalleryPage(
+                      teamName: widget.teamName,
+                      inviteCode: widget.inviteCode,
+                      ownerUid: widget.ownerUid,
+                    ),
+                  ),
+                );
+              },
+            ),
+            if (!widget.isJoined)
+              IconButton(
+                icon: const Icon(Icons.file_download),
+                tooltip: '匯出報表',
+                onPressed: _exportReport,
+              ),
             if (!widget.isJoined)
               IconButton(
                 icon: const Icon(Icons.people),
@@ -2028,7 +2117,13 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
         ),
         body: TabBarView(
           children: [
-            _buildPlayerTab(),
+            PlayersTab(
+              teamName: widget.teamName,
+              inviteCode: widget.inviteCode,
+              ownerUid: widget.ownerUid,
+              isJoined: widget.isJoined,
+              userRole: widget.userRole,
+            ),
             _buildMatchTab(),
             _buildTrainingTab(),
           ],
