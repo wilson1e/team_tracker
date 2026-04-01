@@ -372,7 +372,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				DEVELOPMENT_TEAM = 4UN4YRLR3U;
 				PRODUCT_BUNDLE_IDENTIFIER = com.basketball.team.tracker;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -552,7 +551,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				DEVELOPMENT_TEAM = 4UN4YRLR3U;
 				PRODUCT_BUNDLE_IDENTIFIER = com.basketball.team.tracker;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -575,7 +573,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				DEVELOPMENT_TEAM = 4UN4YRLR3U;
 				PRODUCT_BUNDLE_IDENTIFIER = com.basketball.team.tracker;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
