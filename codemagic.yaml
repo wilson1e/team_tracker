@@ -30,6 +30,9 @@ workflows:
         recipients:
           - wilson1e@icloud.com
       app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
 
   android-workflow:
