@@ -19,6 +19,9 @@ workflows:
         script: |
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --issuer-id $APP_STORE_CONNECT_ISSUER_ID \
+            --key-id $APP_STORE_CONNECT_KEY_IDENTIFIER \
+            --private-key @file:AuthKey_L54RB22QVR.p8 \
             --create
       - name: Add certificates to keychain
         script: |
