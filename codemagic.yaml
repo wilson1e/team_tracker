@@ -6,8 +6,6 @@ workflows:
       flutter: stable
       xcode: 15.0
       cocoapods: default
-      groups:
-        - app_store_connect
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.basketball.team.tracker
