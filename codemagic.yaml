@@ -8,6 +8,9 @@ workflows:
       cocoapods: default
       vars:
         BUNDLE_ID: "com.basketball.team.tracker"
+        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
+        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
     scripts:
       - name: Initialize keychain
         script: |
