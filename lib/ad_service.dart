@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -25,7 +26,12 @@ class AdService {
           : 'ca-app-pub-3940256099942544/1033173712');
 
   static Future<void> initialize() async {
-    await MobileAds.instance.initialize();
+    try {
+      await MobileAds.instance.initialize()
+          .timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('AdService.initialize failed (non-fatal): $e');
+    }
   }
 
   static BannerAd? createBannerAd() {
