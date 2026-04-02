@@ -2,6 +2,8 @@ workflows:
   ios-workflow:
     name: iOS Workflow
     max_build_duration: 120
+    integrations:
+      app_store_connect: codemagic
     environment:
       flutter: stable
       xcode: latest
@@ -30,9 +32,7 @@ workflows:
         recipients:
           - wilson1e@icloud.com
       app_store_connect:
-        api_key: $APP_STORE_CONNECT_PUBLISHER_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        auth: integration
         submit_to_testflight: true
 
   android-workflow:
