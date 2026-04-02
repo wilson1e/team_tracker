@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"git check-ignore -v ios/Runner/GoogleService-Info.plist\",\"description\":\"Check why file is ignored\"}",
+  "error": "Exit code 1",
+  "timestamp": "2026-04-02T10:46:57.361Z",
+  "retry_count": 1
+}

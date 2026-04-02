@@ -1,0 +1,134 @@
+{
+  "agents": [
+    {
+      "agent_id": "ad679da4868529d6c",
+      "agent_type": "Explore",
+      "started_at": "2026-04-01T02:11:22.086Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-01T02:12:33.770Z",
+      "duration_ms": 71684
+    },
+    {
+      "agent_id": "ab9adeb9691512383",
+      "agent_type": "Explore",
+      "started_at": "2026-04-01T02:11:22.142Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-01T02:15:37.925Z",
+      "duration_ms": 255783
+    },
+    {
+      "agent_id": "ac5f354455094cb6a",
+      "agent_type": "Plan",
+      "started_at": "2026-04-01T02:22:30.937Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-01T02:27:55.431Z",
+      "duration_ms": 324494
+    },
+    {
+      "agent_id": "addce11604c69e665",
+      "agent_type": "Plan",
+      "started_at": "2026-04-01T13:47:20.398Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-01T13:48:46.417Z",
+      "duration_ms": 86019
+    },
+    {
+      "agent_id": "a104d0d2f7703fe2c",
+      "agent_type": "oh-my-claudecode:document-specialist",
+      "started_at": "2026-04-01T14:38:29.727Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-01T14:41:59.649Z",
+      "duration_ms": 209922
+    },
+    {
+      "agent_id": "ac3111e1bf955952e",
+      "agent_type": "oh-my-claudecode:analyst",
+      "started_at": "2026-04-01T14:38:29.741Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-01T14:39:29.198Z",
+      "duration_ms": 59457
+    },
+    {
+      "agent_id": "a38db5ece251a0e90",
+      "agent_type": "oh-my-claudecode:debugger",
+      "started_at": "2026-04-01T14:38:29.793Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-01T14:39:01.107Z",
+      "duration_ms": 31314
+    },
+    {
+      "agent_id": "aab6c1dab3eb28f77",
+      "agent_type": "oh-my-claudecode:document-specialist",
+      "started_at": "2026-04-01T23:01:30.673Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-01T23:02:23.049Z",
+      "duration_ms": 52376
+    },
+    {
+      "agent_id": "a543f8e77e060be08",
+      "agent_type": "oh-my-claudecode:tracer",
+      "started_at": "2026-04-01T23:01:30.724Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-01T23:02:10.405Z",
+      "duration_ms": 39681
+    },
+    {
+      "agent_id": "afb86eaca64aaeece",
+      "agent_type": "oh-my-claudecode:debugger",
+      "started_at": "2026-04-01T23:01:30.622Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-01T23:01:51.634Z",
+      "duration_ms": 21012
+    },
+    {
+      "agent_id": "ab92aca7fd5d47328",
+      "agent_type": "oh-my-claudecode:tracer",
+      "started_at": "2026-04-02T12:07:29.621Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-02T12:08:37.757Z",
+      "duration_ms": 68136
+    },
+    {
+      "agent_id": "a25d59e332810e713",
+      "agent_type": "oh-my-claudecode:code-reviewer",
+      "started_at": "2026-04-02T12:12:30.339Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-02T12:15:12.265Z",
+      "duration_ms": 161926
+    },
+    {
+      "agent_id": "a11e9384786c42b0d",
+      "agent_type": "oh-my-claudecode:executor",
+      "started_at": "2026-04-02T12:28:54.943Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-02T12:30:36.824Z",
+      "duration_ms": 101881
+    },
+    {
+      "agent_id": "a7a63e76cf55592b5",
+      "agent_type": "oh-my-claudecode:executor",
+      "started_at": "2026-04-02T12:50:24.960Z",
+      "parent_mode": "none",
+      "status": "completed",
+      "completed_at": "2026-04-02T12:59:55.263Z",
+      "duration_ms": 570303
+    }
+  ],
+  "total_spawned": 9,
+  "total_completed": 14,
+  "total_failed": 0,
+  "last_updated": "2026-04-02T12:59:55.375Z"
+}

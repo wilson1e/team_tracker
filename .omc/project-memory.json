@@ -1,0 +1,383 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1775083970549,
+  "projectRoot": "C:\\Users\\WilsonPC\\flutter_projects\\team_tracker",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "assets",
+      "lib",
+      "test"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "android": {
+      "path": "android",
+      "purpose": null,
+      "fileCount": 11,
+      "lastAccessed": 1775083970535,
+      "keyFiles": [
+        "build.gradle.kts",
+        "gradle.properties",
+        "gradlew",
+        "gradlew.bat",
+        "key.properties"
+      ]
+    },
+    "assets": {
+      "path": "assets",
+      "purpose": "Static assets",
+      "fileCount": 3,
+      "lastAccessed": 1775083970536,
+      "keyFiles": [
+        "icon_final.png",
+        "icon_new.jpg",
+        "icon_original.jpg"
+      ]
+    },
+    "build": {
+      "path": "build",
+      "purpose": "Build output",
+      "fileCount": 0,
+      "lastAccessed": 1775083970536,
+      "keyFiles": []
+    },
+    "ios": {
+      "path": "ios",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1775083970536,
+      "keyFiles": [
+        "Podfile"
+      ]
+    },
+    "lib": {
+      "path": "lib",
+      "purpose": "Library code",
+      "fileCount": 14,
+      "lastAccessed": 1775083970536,
+      "keyFiles": [
+        "ad_service.dart",
+        "calendar_service.dart",
+        "constants.dart",
+        "exceptions.dart",
+        "login_page.dart"
+      ]
+    },
+    "test": {
+      "path": "test",
+      "purpose": "Test files",
+      "fileCount": 1,
+      "lastAccessed": 1775083970536,
+      "keyFiles": [
+        "widget_test.dart"
+      ]
+    },
+    "web": {
+      "path": "web",
+      "purpose": null,
+      "fileCount": 11,
+      "lastAccessed": 1775083970537,
+      "keyFiles": [
+        "favicon.png",
+        "firebase-debug.log",
+        "firebase.json",
+        "flutter.js",
+        "flutter_bootstrap.js"
+      ]
+    },
+    "android\\app": {
+      "path": "android\\app",
+      "purpose": "Application code",
+      "fileCount": 2,
+      "lastAccessed": 1775083970537,
+      "keyFiles": [
+        "build.gradle.kts",
+        "google-services.json"
+      ]
+    },
+    "build\\app": {
+      "path": "build\\app",
+      "purpose": "Application code",
+      "fileCount": 2,
+      "lastAccessed": 1775083970537,
+      "keyFiles": [
+        "deeplink.json",
+        "gmpAppId.txt"
+      ]
+    },
+    "lib\\models": {
+      "path": "lib\\models",
+      "purpose": "Data models",
+      "fileCount": 1,
+      "lastAccessed": 1775083970538,
+      "keyFiles": [
+        "match.dart"
+      ]
+    },
+    "lib\\pages": {
+      "path": "lib\\pages",
+      "purpose": "Page components",
+      "fileCount": 1,
+      "lastAccessed": 1775083970538,
+      "keyFiles": [
+        "photo_gallery_page.dart"
+      ]
+    },
+    "web\\assets": {
+      "path": "web\\assets",
+      "purpose": "Static assets",
+      "fileCount": 4,
+      "lastAccessed": 1775083970538,
+      "keyFiles": [
+        "AssetManifest.bin",
+        "AssetManifest.bin.json",
+        "FontManifest.json"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "lib\\teams_list_page.dart",
+      "accessCount": 31,
+      "lastAccessed": 1775135046983,
+      "type": "directory"
+    },
+    {
+      "path": "lib\\login_page.dart",
+      "accessCount": 13,
+      "lastAccessed": 1775134270035,
+      "type": "file"
+    },
+    {
+      "path": "lib\\pages\\photo_gallery_page.dart",
+      "accessCount": 11,
+      "lastAccessed": 1775135068145,
+      "type": "file"
+    },
+    {
+      "path": "pubspec.yaml",
+      "accessCount": 10,
+      "lastAccessed": 1775135212518,
+      "type": "file"
+    },
+    {
+      "path": "lib",
+      "accessCount": 10,
+      "lastAccessed": 1775135222126,
+      "type": "directory"
+    },
+    {
+      "path": "lib\\ad_service.dart",
+      "accessCount": 9,
+      "lastAccessed": 1775132996351,
+      "type": "directory"
+    },
+    {
+      "path": "lib\\providers\\team_provider.dart",
+      "accessCount": 9,
+      "lastAccessed": 1775135182416,
+      "type": "file"
+    },
+    {
+      "path": "codemagic.yaml",
+      "accessCount": 8,
+      "lastAccessed": 1775124725281,
+      "type": "file"
+    },
+    {
+      "path": "lib\\team_detail_page.dart",
+      "accessCount": 8,
+      "lastAccessed": 1775134270091,
+      "type": "file"
+    },
+    {
+      "path": "ios\\Runner\\Info.plist",
+      "accessCount": 7,
+      "lastAccessed": 1775132510706,
+      "type": "file"
+    },
+    {
+      "path": "lib\\main.dart",
+      "accessCount": 7,
+      "lastAccessed": 1775133824632,
+      "type": "file"
+    },
+    {
+      "path": "lib\\models\\match.dart",
+      "accessCount": 5,
+      "lastAccessed": 1775134652404,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 4,
+      "lastAccessed": 1775134946349,
+      "type": "directory"
+    },
+    {
+      "path": "lib\\pages\\team_detail\\tabs\\players_tab.dart",
+      "accessCount": 4,
+      "lastAccessed": 1775135068082,
+      "type": "file"
+    },
+    {
+      "path": "android\\app\\src\\main\\AndroidManifest.xml",
+      "accessCount": 4,
+      "lastAccessed": 1775135103475,
+      "type": "directory"
+    },
+    {
+      "path": "lib\\services\\storage_service.dart",
+      "accessCount": 4,
+      "lastAccessed": 1775135115589,
+      "type": "file"
+    },
+    {
+      "path": "lib\\exceptions.dart",
+      "accessCount": 3,
+      "lastAccessed": 1775132229481,
+      "type": "file"
+    },
+    {
+      "path": "lib\\notification_service.dart",
+      "accessCount": 3,
+      "lastAccessed": 1775132959899,
+      "type": "file"
+    },
+    {
+      "path": "lib\\team_members_page.dart",
+      "accessCount": 3,
+      "lastAccessed": 1775133006482,
+      "type": "file"
+    },
+    {
+      "path": "lib\\matches_page.dart",
+      "accessCount": 3,
+      "lastAccessed": 1775133016092,
+      "type": "file"
+    },
+    {
+      "path": "lib\\theme_service.dart",
+      "accessCount": 3,
+      "lastAccessed": 1775133789396,
+      "type": "file"
+    },
+    {
+      "path": "lib\\settings_page.dart",
+      "accessCount": 3,
+      "lastAccessed": 1775134333322,
+      "type": "file"
+    },
+    {
+      "path": "AuthKey_L54RB22QVR.p8",
+      "accessCount": 2,
+      "lastAccessed": 1775084498991,
+      "type": "file"
+    },
+    {
+      "path": "lib\\widgets\\common\\network_banner.dart",
+      "accessCount": 2,
+      "lastAccessed": 1775134960853,
+      "type": "file"
+    },
+    {
+      "path": "lib\\services\\ai_prediction_service.dart",
+      "accessCount": 2,
+      "lastAccessed": 1775134960863,
+      "type": "file"
+    },
+    {
+      "path": "lib\\widgets\\common\\loading_widgets.dart",
+      "accessCount": 2,
+      "lastAccessed": 1775134960874,
+      "type": "file"
+    },
+    {
+      "path": "privacy_policy.html",
+      "accessCount": 1,
+      "lastAccessed": 1775119334628,
+      "type": "file"
+    },
+    {
+      "path": "ios\\Podfile",
+      "accessCount": 1,
+      "lastAccessed": 1775131656694,
+      "type": "file"
+    },
+    {
+      "path": "ios\\Runner\\GoogleService-Info.plist",
+      "accessCount": 1,
+      "lastAccessed": 1775131656761,
+      "type": "file"
+    },
+    {
+      "path": "lib\\constants.dart",
+      "accessCount": 1,
+      "lastAccessed": 1775131957421,
+      "type": "file"
+    },
+    {
+      "path": "lib\\team_settings_page.dart",
+      "accessCount": 1,
+      "lastAccessed": 1775131965871,
+      "type": "file"
+    },
+    {
+      "path": "lib\\calendar_service.dart",
+      "accessCount": 1,
+      "lastAccessed": 1775131974447,
+      "type": "file"
+    },
+    {
+      "path": "lib\\utils\\error_handler.dart",
+      "accessCount": 1,
+      "lastAccessed": 1775131982768,
+      "type": "file"
+    },
+    {
+      "path": "lib\\services\\export\\export_service.dart",
+      "accessCount": 1,
+      "lastAccessed": 1775131982805,
+      "type": "file"
+    },
+    {
+      "path": "lib\\services\\data\\player_service.dart",
+      "accessCount": 1,
+      "lastAccessed": 1775131982871,
+      "type": "file"
+    },
+    {
+      "path": "lib\\widgets\\pickers\\venue_picker.dart",
+      "accessCount": 1,
+      "lastAccessed": 1775131991410,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

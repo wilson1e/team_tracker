@@ -65,8 +65,8 @@ class TeamProvider extends ChangeNotifier {
 
     try {
       _matches.add(match);
-      final result = _storageService.saveMatches(_matches);
-      
+      final result = await _storageService.saveMatches(_matches);
+
       result.when(
         success: (_) {
           _successMessage = '比賽已添加';
@@ -97,8 +97,8 @@ class TeamProvider extends ChangeNotifier {
 
     final oldMatch = _matches[index];
     _matches[index] = match;
-    
-    final result = _storageService.saveMatches(_matches);
+
+    final result = await _storageService.saveMatches(_matches);
     
     result.when(
       success: (_) {
@@ -124,7 +124,7 @@ class TeamProvider extends ChangeNotifier {
     }
 
     final removedMatch = _matches.removeAt(index);
-    final result = _storageService.saveMatches(_matches);
+    final result = await _storageService.saveMatches(_matches);
     
     result.when(
       success: (_) {
@@ -143,7 +143,7 @@ class TeamProvider extends ChangeNotifier {
 
   // Save all matches
   Future<bool> saveAllMatches(List<Match> matches) async {
-    final result = _storageService.saveMatches(matches);
+    final result = await _storageService.saveMatches(matches);
     
     result.when(
       success: (_) {

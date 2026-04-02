@@ -38,10 +38,10 @@ class StorageService {
     }
   }
 
-  Result<void> saveMatches(List<Match> matches) {
+  Future<Result<void>> saveMatches(List<Match> matches) async {
     try {
       final jsonList = matches.map((m) => m.toJson()).toList();
-      _prefs.setString(_matchesKey, json.encode(jsonList));
+      await _prefs.setString(_matchesKey, json.encode(jsonList));
       return Result.success(null);
     } catch (e) {
       return Result.failure(StorageException(
