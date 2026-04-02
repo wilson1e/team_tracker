@@ -20,15 +20,6 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
 
-  // Demo users for local fallback (only in debug mode)
-  static final Map<String, Map<String, String>> _demoUsers = const bool.fromEnvironment('dart.vm.product')
-      ? {} // Empty in production
-      : {
-          'admin@team.com':  {'password': '1234',      'name': '教練',     'role': 'admin'},
-          'coach@team.com':  {'password': 'coach123',  'name': '教練助手', 'role': 'coach'},
-          'player@team.com': {'password': 'player123', 'name': '球員',     'role': 'player'},
-        };
-
   @override
   void dispose() {
     _emailController.dispose();
@@ -180,19 +171,6 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       _showError('網絡錯誤，請稍後再試');
-    }
-  }
-
-  void _fallbackLogin(String email, String password) {
-    final demo = _demoUsers[email];
-    if (demo != null && demo['password'] == password) {
-      _navigateToHome(
-        email: email,
-        name: demo['name']!,
-        role: demo['role']!,
-      );
-    } else {
-      _showError('登入失敗 — 請檢查 Email 同密碼');
     }
   }
 

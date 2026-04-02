@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -6,9 +7,22 @@ class AdService {
   static InterstitialAd? _interstitialAd;
   static bool _isInterstitialAdReady = false;
 
-  // 測試廣告 ID（正式上線前需要替換為真實 ID）
-  static const String bannerAdUnitId = 'ca-app-pub-3940256099942544/6300978111';
-  static const String interstitialAdUnitId = 'ca-app-pub-3940256099942544/1033173712';
+  // Ad unit IDs — swap the TODO values for real IDs before release
+  static String get bannerAdUnitId => const bool.fromEnvironment('dart.vm.product')
+      ? (Platform.isIOS
+          ? 'ca-app-pub-3940256099942544/2934735716'   // TODO: replace with real iOS banner ID
+          : 'ca-app-pub-3940256099942544/6300978111')  // TODO: replace with real Android banner ID
+      : (Platform.isIOS
+          ? 'ca-app-pub-3940256099942544/2934735716'
+          : 'ca-app-pub-3940256099942544/6300978111');
+
+  static String get interstitialAdUnitId => const bool.fromEnvironment('dart.vm.product')
+      ? (Platform.isIOS
+          ? 'ca-app-pub-3940256099942544/4411468910'   // TODO: replace with real iOS interstitial ID
+          : 'ca-app-pub-3940256099942544/1033173712')  // TODO: replace with real Android interstitial ID
+      : (Platform.isIOS
+          ? 'ca-app-pub-3940256099942544/4411468910'
+          : 'ca-app-pub-3940256099942544/1033173712');
 
   static void initialize() {
     MobileAds.instance.initialize();

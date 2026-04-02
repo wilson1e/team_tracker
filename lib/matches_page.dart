@@ -137,6 +137,8 @@ class _MatchesPageState extends State<MatchesPage> {
     String? selectedHomeAway = isEdit && existingMatch != null ? existingMatch.homeAway : null;
     Color? selectedJerseyColor = isEdit && existingMatch != null ? existingMatch.jerseyColor : null;
     final opponentCtrl = TextEditingController(text: isEdit && existingMatch != null ? existingMatch.opponent : '');
+    final timeInputCtrl = TextEditingController(text: timeOptions.contains(selectedTime) ? '' : selectedTime);
+    final customVenueCtrl = TextEditingController(text: customVenue);
 
     showDialog(
       context: context,

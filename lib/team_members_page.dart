@@ -75,13 +75,17 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
           .doc(memberUid)
           .delete();
 
-      // 刪除被移除成員本地的球隊記錄
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(memberUid)
-          .collection('myTeams')
-          .doc(widget.teamId)
-          .delete();
+      // WARNING: cross-user write — only safe when current user is the team owner.
+      // Guard: widget.isOwner is already checked by the PopupMenuButton visibility,
+      // but we double-check here to prevent accidental writes.
+      if (widget.isOwner) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(memberUid)
+            .collection('myTeams')
+            .doc(widget.teamId)
+            .delete();
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已移除成員')));
