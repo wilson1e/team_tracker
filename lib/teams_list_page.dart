@@ -182,18 +182,17 @@ class _TeamsListPageState extends State<TeamsListPage> {
     if (name.trim().isEmpty) return;
     setState(() {
       _teams[index] = {
+        ..._teams[index],
         'name':       name.trim(),
         'logo':       logoPath,
-        'inviteCode': _teams[index]['inviteCode'],
         'homeJersey': homeJersey,
         'awayJersey': awayJersey,
       };
     });
-    // FIX: was missing — edits were not persisted to cloud
     _saveTeamsToCloud();
   }
 
-  Future<void> _deleteTeam(int index) async {
+  Future<bool> _deleteTeam(int index) async {
     final team = _teams[index];
     final isJoined = team['isJoined'] == true;
     final confirm = await showDialog<bool>(
@@ -220,9 +219,13 @@ class _TeamsListPageState extends State<TeamsListPage> {
         ],
       ),
     );
-    if (confirm != true) return;
+    if (confirm != true) return false;
+    // Guard: list may have changed during async dialog
+    if (index >= _teams.length) return false;
+    if (_teams[index]['inviteCode'] != team['inviteCode']) return false;
     setState(() => _teams.removeAt(index));
     _saveTeamsToCloud();
+    return true;
   }
 
   // ── Jersey colour helpers ──────────────────────────────────────
@@ -836,7 +839,7 @@ class _TeamsListPageState extends State<TeamsListPage> {
                         ),
                         child: const Icon(Icons.delete, color: Colors.white),
                       ),
-                      confirmDismiss: (_) => _deleteTeam(index).then((_) => false),
+                      confirmDismiss: (_) => _deleteTeam(index),
                       child: Card(
                         color:  const Color(0xFF1A1A2E),
                         margin: const EdgeInsets.only(bottom: 12),

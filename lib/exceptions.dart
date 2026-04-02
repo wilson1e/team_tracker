@@ -35,7 +35,7 @@ class Result<T> {
     required R Function(T data) success,
     required R Function(AppException error) failure,
   }) {
-    if (isSuccess && data != null) {
+    if (isSuccess) {
       return success(data as T);
     } else {
       return failure(error!);

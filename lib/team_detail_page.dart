@@ -332,7 +332,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
       try {
         final matchDate = DateTime.parse(match['date']);
         await notificationService.scheduleMatchNotification(
-          id: widget.teamName.hashCode + i,
+          id: '${widget.teamName}_match_$i'.hashCode.abs(),
           teamName: widget.teamName,
           opponent: match['opponent'] ?? '',
           matchDate: matchDate,
@@ -379,7 +379,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
       try {
         final trainingDate = DateTime.parse(training['date']);
         await notificationService.scheduleTrainingNotification(
-          id: widget.teamName.hashCode + 10000 + i,
+          id: '${widget.teamName}_training_$i'.hashCode.abs(),
           teamName: widget.teamName,
           title: training['title'] ?? '',
           trainingDate: trainingDate,
