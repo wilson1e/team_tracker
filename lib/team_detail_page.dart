@@ -61,6 +61,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
   Color?    _selectedJerseyColor;
   final     _opponentCtrl   = TextEditingController();
   final     _venueCtrl      = TextEditingController();
+  final     _matchNotesCtrl = TextEditingController();
 
   // ── Training form ─────────────────────────────────────────────
   List<Map<String, dynamic>> _training = [];
@@ -164,6 +165,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
     _weightCtrl.dispose();
     _opponentCtrl.dispose();
     _venueCtrl.dispose();
+    _matchNotesCtrl.dispose();
     _trainingTitleCtrl.dispose();
     _trainingNotesCtrl.dispose();
     _trainingVenueCtrl.dispose();
@@ -888,11 +890,13 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
         'scoreUs':     null,
         'scoreThem':   null,
         'attendance':  attendance,
+        'notes':       _matchNotesCtrl.text.trim(),
       });
       _matches.sort((a, b) => b['date'].compareTo(a['date']));
     });
     _saveMatches();
     _opponentCtrl.clear();
+    _matchNotesCtrl.clear();
     _showMessage('比賽已新增');
   }
 
@@ -953,6 +957,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
     bool     editIsHome     = match['isHome'];
     Color?   editJerseyColor = match['jerseyColor'];
     Map<String, bool> editAttendance = _deserializeAttendance(match['attendance']);
+    final notesCtrl = TextEditingController(text: match['notes'] as String? ?? '');
     for (final p in _players) {
       editAttendance.putIfAbsent(p['name'] as String, () => false);
     }
@@ -1123,6 +1128,12 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                           setDS(() => editAttendance[name] = v ?? false),
                     )),
               ],
+              const SizedBox(height: 8),
+              TextField(
+                  controller: notesCtrl,
+                  style:       const TextStyle(color: Colors.white),
+                  maxLines:    3,
+                  decoration:  _inputDeco('備註')),
             ]),
           ),
           actions: [
@@ -1148,6 +1159,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                     'scoreUs':     int.tryParse(usCtrl.text),
                     'scoreThem':   int.tryParse(themCtrl.text),
                     'attendance':  editAttendance,
+                    'notes':       notesCtrl.text.trim(),
                   };
                   _matches.sort((a, b) => b['date'].compareTo(a['date']));
                 });
@@ -1682,6 +1694,12 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                       controller: _opponentCtrl,
                       style:       const TextStyle(color: Colors.white),
                       decoration:  _inputDeco('對手')),
+                  const SizedBox(height: 8),
+                  TextField(
+                      controller: _matchNotesCtrl,
+                      style:       const TextStyle(color: Colors.white),
+                      maxLines:    2,
+                      decoration:  _inputDeco('備註')),
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
@@ -1760,10 +1778,29 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                               fontSize: 13)),
                     ),
                 ]),
-                subtitle: Text(
-                    '${m['date']} ${m['time']} @ ${m['venue']}',
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 12)),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${m['date']} ${m['time']} @ ${m['venue']}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                    if (m['notes'] != null && (m['notes'] as String).isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.note, size: 12, color: Colors.orange),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(m['notes'],
+                              style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       IconButton(
                         icon: const Icon(Icons.calendar_today, color: Colors.blue),

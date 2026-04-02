@@ -1,7 +1,7 @@
 {
   "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"git check-ignore -v ios/Runner/GoogleService-Info.plist\",\"description\":\"Check why file is ignored\"}",
-  "error": "Exit code 1",
-  "timestamp": "2026-04-02T10:46:57.361Z",
+  "tool_input_preview": "{\"command\":\"cd \\\"C:/Users/WilsonPC/flutter_projects/team_tracker\\\" && flutter analyze lib/login_page.dart lib/team_detail_page.dart 2>&1\",\"timeout\":60000,\"description\":\"Analyze changed files for error...",
+  "error": "Exit code 1\nAnalyzing 2 items...                                            \n\nwarning - Unused import: 'dart:math' - lib\\team_detail_page.dart:2:8 - unused_import\n   info - 'value' is deprecated and shouldn't be used. Use component accessors like .r or .g, or toARGB32 for an explicit conversion - lib\\team_detail_page.dart:16:33 - deprecated_member_use\nwarning - The value of the field '_jerseyColors' isn't used - lib\\team_detail_page.dart:122:36 - unused_field\n   info - 'value' is deprecated and ...",
+  "timestamp": "2026-04-02T14:22:57.741Z",
   "retry_count": 1
 }

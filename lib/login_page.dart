@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'teams_list_page.dart';
 
@@ -15,10 +16,19 @@ class _LoginPageState extends State<LoginPage> {
   bool isLoginMode = true;
   bool isLoading = false;
   bool _obscurePassword = true;
+  String _version = '';
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = 'v${info.version}+${info.buildNumber}');
+    });
+  }
 
   @override
   void dispose() {
@@ -242,7 +252,9 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
+      body: Stack(
+        children: [
+          Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -380,6 +392,18 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
         ),
+          ),
+          // Version number bottom-right
+          if (_version.isNotEmpty)
+            Positioned(
+              bottom: 12,
+              right: 16,
+              child: Text(
+                _version,
+                style: const TextStyle(color: Colors.white24, fontSize: 11),
+              ),
+            ),
+        ],
       ),
     );
   }

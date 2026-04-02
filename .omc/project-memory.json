@@ -163,6 +163,12 @@
   },
   "hotPaths": [
     {
+      "path": "lib\\team_detail_page.dart",
+      "accessCount": 33,
+      "lastAccessed": 1775139745244,
+      "type": "file"
+    },
+    {
       "path": "lib\\teams_list_page.dart",
       "accessCount": 31,
       "lastAccessed": 1775135046983,
@@ -170,8 +176,14 @@
     },
     {
       "path": "lib\\login_page.dart",
-      "accessCount": 13,
-      "lastAccessed": 1775134270035,
+      "accessCount": 23,
+      "lastAccessed": 1775139578860,
+      "type": "file"
+    },
+    {
+      "path": "pubspec.yaml",
+      "accessCount": 12,
+      "lastAccessed": 1775139789336,
       "type": "file"
     },
     {
@@ -181,21 +193,15 @@
       "type": "file"
     },
     {
-      "path": "pubspec.yaml",
-      "accessCount": 10,
-      "lastAccessed": 1775135212518,
-      "type": "file"
+      "path": "lib\\ad_service.dart",
+      "accessCount": 11,
+      "lastAccessed": 1775138954392,
+      "type": "directory"
     },
     {
       "path": "lib",
       "accessCount": 10,
       "lastAccessed": 1775135222126,
-      "type": "directory"
-    },
-    {
-      "path": "lib\\ad_service.dart",
-      "accessCount": 9,
-      "lastAccessed": 1775132996351,
       "type": "directory"
     },
     {
@@ -205,33 +211,33 @@
       "type": "file"
     },
     {
+      "path": "lib\\main.dart",
+      "accessCount": 9,
+      "lastAccessed": 1775138966596,
+      "type": "file"
+    },
+    {
       "path": "codemagic.yaml",
       "accessCount": 8,
       "lastAccessed": 1775124725281,
       "type": "file"
     },
     {
-      "path": "lib\\team_detail_page.dart",
-      "accessCount": 8,
-      "lastAccessed": 1775134270091,
-      "type": "file"
-    },
-    {
       "path": "ios\\Runner\\Info.plist",
-      "accessCount": 7,
-      "lastAccessed": 1775132510706,
-      "type": "file"
-    },
-    {
-      "path": "lib\\main.dart",
-      "accessCount": 7,
-      "lastAccessed": 1775133824632,
+      "accessCount": 8,
+      "lastAccessed": 1775138934551,
       "type": "file"
     },
     {
       "path": "lib\\models\\match.dart",
       "accessCount": 5,
       "lastAccessed": 1775134652404,
+      "type": "file"
+    },
+    {
+      "path": "lib\\theme_service.dart",
+      "accessCount": 5,
+      "lastAccessed": 1775138974398,
       "type": "file"
     },
     {
@@ -283,12 +289,6 @@
       "type": "file"
     },
     {
-      "path": "lib\\theme_service.dart",
-      "accessCount": 3,
-      "lastAccessed": 1775133789396,
-      "type": "file"
-    },
-    {
       "path": "lib\\settings_page.dart",
       "accessCount": 3,
       "lastAccessed": 1775134333322,
@@ -319,6 +319,18 @@
       "type": "file"
     },
     {
+      "path": "android",
+      "accessCount": 2,
+      "lastAccessed": 1775137393128,
+      "type": "directory"
+    },
+    {
+      "path": "ios\\Runner\\GoogleService-Info.plist",
+      "accessCount": 2,
+      "lastAccessed": 1775138944962,
+      "type": "file"
+    },
+    {
       "path": "privacy_policy.html",
       "accessCount": 1,
       "lastAccessed": 1775119334628,
@@ -328,12 +340,6 @@
       "path": "ios\\Podfile",
       "accessCount": 1,
       "lastAccessed": 1775131656694,
-      "type": "file"
-    },
-    {
-      "path": "ios\\Runner\\GoogleService-Info.plist",
-      "accessCount": 1,
-      "lastAccessed": 1775131656761,
       "type": "file"
     },
     {
@@ -376,6 +382,12 @@
       "path": "lib\\widgets\\pickers\\venue_picker.dart",
       "accessCount": 1,
       "lastAccessed": 1775131991410,
+      "type": "file"
+    },
+    {
+      "path": "代碼審查修復報告.md",
+      "accessCount": 1,
+      "lastAccessed": 1775135660938,
       "type": "file"
     }
   ],
