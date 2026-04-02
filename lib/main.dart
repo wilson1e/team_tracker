@@ -12,7 +12,7 @@ void main() async {
 
   try {
     await Firebase.initializeApp();
-    AdService.initialize();
+    await AdService.initialize();
 
     final storageService = StorageService();
     await storageService.init();
