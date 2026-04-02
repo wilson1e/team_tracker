@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'notification_service.dart';
+import 'services/changelog_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -142,6 +143,25 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ],
                     ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // 版本更新
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF16213E),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListTile(
+                    leading: const Icon(Icons.new_releases, color: Colors.orange),
+                    title: const Text('版本更新',
+                        style: TextStyle(color: Colors.white, fontSize: 16)),
+                    subtitle: Text('v${ChangelogService.currentVersion}',
+                        style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                    trailing: const Icon(Icons.chevron_right, color: Colors.white38),
+                    onTap: () => ChangelogService.show(context, markAsSeen: false),
                   ),
                 ),
 

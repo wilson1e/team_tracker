@@ -48,7 +48,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
   final _numberCtrl = TextEditingController();
   final _heightCtrl = TextEditingController();
   final _weightCtrl = TextEditingController();
-  String _selectedPosition = '';
+  List<String> _selectedPositions = [];
   List<Map<String, dynamic>> _players = [];
 
   // ── Match form ────────────────────────────────────────────────
@@ -565,7 +565,8 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
   }
 
   Color _positionColor(String pos) {
-    switch (pos) {
+    final first = pos.split('/').first;
+    switch (first) {
       case 'PG': return const Color(0xFF4FC3F7);
       case 'SG': return const Color(0xFF4DB6AC);
       case 'SF': return const Color(0xFF81C784);
@@ -675,11 +676,11 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
       _players.add({
         'name':     _nameCtrl.text.trim(),
         'number':   number,
-        'position': _selectedPosition.isEmpty ? '-' : _selectedPosition,
+        'position': _selectedPositions.isEmpty ? '-' : _selectedPositions.join('/'),
         'height':   height,
         'weight':   weight,
       });
-      _selectedPosition = '';
+      _selectedPositions = [];
     });
     _savePlayers();
     _nameCtrl.clear();
@@ -757,7 +758,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
     final numberCtrl = TextEditingController(text: '${p['number']}');
     final heightCtrl = TextEditingController(text: '${p['height']}');
     final weightCtrl = TextEditingController(text: '${p['weight']}');
-    String editPos   = p['position'] == '-' ? '' : p['position'];
+    List<String> editPositions = p['position'] == '-' ? [] : (p['position'] as String).split('/');
 
     showDialog(
       context: context,
@@ -801,10 +802,10 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                 children: _positions
                     .map((pos) => ChoiceChip(
                           label:         Text(pos),
-                          selected:      editPos == pos,
+                          selected:      editPositions.contains(pos),
                           selectedColor: Colors.orange,
                           onSelected: (s) =>
-                              setDS(() => editPos = s ? pos : ''),
+                              setDS(() { if (s) { editPositions.add(pos); } else { editPositions.remove(pos); } }),
                         ))
                     .toList(),
               ),
@@ -823,7 +824,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                   _players[index] = {
                     'name':     nameCtrl.text.trim(),
                     'number':   int.tryParse(numberCtrl.text) ?? 0,
-                    'position': editPos.isEmpty ? '-' : editPos,
+                    'position': editPositions.isEmpty ? '-' : editPositions.join('/'),
                     'height':   int.tryParse(heightCtrl.text) ?? 0,
                     'weight':   int.tryParse(weightCtrl.text) ?? 0,
                   };
@@ -1449,10 +1450,11 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                     children: _positions
                         .map((pos) => ChoiceChip(
                               label:         Text(pos),
-                              selected:      _selectedPosition == pos,
+                              selected:      _selectedPositions.contains(pos),
                               selectedColor: Colors.orange,
-                              onSelected: (s) => setState(
-                                  () => _selectedPosition = s ? pos : ''),
+                              onSelected: (s) => setState(() {
+                                if (s) { _selectedPositions.add(pos); } else { _selectedPositions.remove(pos); }
+                              }),
                             ))
                         .toList(),
                   ),
@@ -1535,20 +1537,24 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                               ),
                             ),
                             // 位置 Badge
-                            if (pos != '-') ...[
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: posColor.withValues(alpha:0.12),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: posColor.withValues(alpha:0.4)),
-                                ),
-                                child: Text(pos,
-                                  style: TextStyle(color: posColor,
-                                      fontSize: 11, fontWeight: FontWeight.bold)),
+                            if (pos != '-')
+                              Wrap(
+                                spacing: 4,
+                                children: pos.split('/').map((p) {
+                                  final c = _positionColor(p);
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: c.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: c.withValues(alpha: 0.4)),
+                                    ),
+                                    child: Text(p,
+                                      style: TextStyle(color: c,
+                                          fontSize: 11, fontWeight: FontWeight.bold)),
+                                  );
+                                }).toList(),
                               ),
-                              const SizedBox(width: 4),
-                            ],
                             // 操作按鈕
                             IconButton(
                               icon: const Icon(Icons.bar_chart, color: Colors.orange, size: 18),
@@ -2082,7 +2088,29 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
               IconButton(
                 icon: const Icon(Icons.file_download),
                 tooltip: '匯出報表',
-                onPressed: _exportReport,
+                onPressed: () => showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: const Color(0xFF1A1A2E),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    title: const Row(children: [
+                      Icon(Icons.lock_outline, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Text('功能即將開放', style: TextStyle(color: Colors.white, fontSize: 16)),
+                    ]),
+                    content: const Text(
+                      '匯出記錄功能將會在正式版開放，敬請期待！',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    actions: [
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                        child: const Text('知道了'),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             if (!widget.isJoined)
               IconButton(

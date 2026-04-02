@@ -11,6 +11,7 @@ import 'team_detail_page.dart';
 import 'login_page.dart';
 import 'settings_page.dart';
 import 'ad_service.dart';
+import 'services/changelog_service.dart';
 
 // Helper function to generate invite code
 String generateInviteCode() {
@@ -50,6 +51,11 @@ class _TeamsListPageState extends State<TeamsListPage> {
     _loadTeamsFromCloud();
     _bannerAd = AdService.createBannerAd();
     AdService.loadInterstitialAd();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (await ChangelogService.shouldShow()) {
+        if (mounted) ChangelogService.show(context);
+      }
+    });
   }
 
   @override

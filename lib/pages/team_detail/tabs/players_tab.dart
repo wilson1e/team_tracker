@@ -28,7 +28,7 @@ class _PlayersTabState extends State<PlayersTab> {
   final _numberCtrl = TextEditingController();
   final _heightCtrl = TextEditingController();
   final _weightCtrl = TextEditingController();
-  String _selectedPosition = '';
+  List<String> _selectedPositions = [];
   List<Map<String, dynamic>> _players = [];
 
   final List<String> _positions = ['PG', 'SG', 'SF', 'PF', 'C'];
@@ -83,11 +83,11 @@ class _PlayersTabState extends State<PlayersTab> {
       _players.add({
         'name': _nameCtrl.text.trim(),
         'number': number,
-        'position': _selectedPosition.isEmpty ? '-' : _selectedPosition,
+        'position': _selectedPositions.isEmpty ? '-' : _selectedPositions.join('/'),
         'height': int.tryParse(_heightCtrl.text) ?? 0,
         'weight': int.tryParse(_weightCtrl.text) ?? 0,
       });
-      _selectedPosition = '';
+      _selectedPositions = [];
     });
 
     _savePlayers();
@@ -109,7 +109,8 @@ class _PlayersTabState extends State<PlayersTab> {
   }
 
   Color _positionColor(String pos) {
-    switch (pos) {
+    final first = pos.split('/').first;
+    switch (first) {
       case 'PG': return const Color(0xFF4FC3F7);
       case 'SG': return const Color(0xFF4DB6AC);
       case 'SF': return const Color(0xFF81C784);
@@ -188,9 +189,11 @@ class _PlayersTabState extends State<PlayersTab> {
               spacing: 8,
               children: _positions.map((pos) => ChoiceChip(
                 label: Text(pos),
-                selected: _selectedPosition == pos,
+                selected: _selectedPositions.contains(pos),
                 selectedColor: Colors.orange,
-                onSelected: (s) => setState(() => _selectedPosition = s ? pos : ''),
+                onSelected: (s) => setState(() {
+                  if (s) { _selectedPositions.add(pos); } else { _selectedPositions.remove(pos); }
+                }),
               )).toList(),
             ),
             const SizedBox(height: 12),
@@ -250,13 +253,19 @@ class _PlayersTabState extends State<PlayersTab> {
         title: Text(player['name'], style: const TextStyle(color: Colors.white)),
         subtitle: Text('${player['height']} cm · ${player['weight']} kg',
             style: const TextStyle(color: Colors.white54, fontSize: 12)),
-        trailing: pos != '-' ? Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: posColor.withValues(alpha:0.12),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(pos, style: TextStyle(color: posColor, fontWeight: FontWeight.bold)),
+        trailing: pos != '-' ? Wrap(
+          spacing: 4,
+          children: pos.split('/').map((p) {
+            final c = _positionColor(p);
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: c.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(p, style: TextStyle(color: c, fontWeight: FontWeight.bold)),
+            );
+          }).toList(),
         ) : null,
       ),
     );
