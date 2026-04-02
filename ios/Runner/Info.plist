@@ -72,8 +72,6 @@
 					<string>FlutterSceneDelegate</string>
 					<key>UISceneConfigurationName</key>
 					<string>flutter</string>
-					<key>UISceneStoryboardFile</key>
-					<string>Main</string>
 				</dict>
 			</array>
 		</dict>
