@@ -10,15 +10,25 @@ import 'login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Firebase
-  await Firebase.initializeApp();
-  
-  // Initialize storage
-  final storageService = StorageService();
-  await storageService.init();
-  
-  runApp(TeamTrackerApp(storageService: storageService));
+
+  try {
+    // Initialize Firebase
+    await Firebase.initializeApp();
+
+    // Initialize storage
+    final storageService = StorageService();
+    await storageService.init();
+
+    runApp(TeamTrackerApp(storageService: storageService));
+  } catch (e) {
+    runApp(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Text('初始化失敗: $e', style: const TextStyle(color: Colors.red)),
+        ),
+      ),
+    ));
+  }
 }
 
 class TeamTrackerApp extends StatelessWidget {

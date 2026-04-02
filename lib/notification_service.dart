@@ -137,10 +137,20 @@ class NotificationService {
       final minutes = int.tryParse(notifTime.replaceAll('分鐘前', '').trim()) ?? 30;
       return fullMatchDateTime.subtract(Duration(minutes: minutes));
     } else {
+      // Fixed time (e.g., "09:00")
       final parts = notifTime.split(':');
       final hour = int.tryParse(parts[0]) ?? 9;
       final minute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
-      return DateTime(matchDate.year, matchDate.month, matchDate.day, hour, minute);
+
+      var scheduledTime = DateTime(matchDate.year, matchDate.month, matchDate.day, hour, minute);
+
+      // If notification time has passed today but match is in the future, schedule for match day
+      if (scheduledTime.isBefore(DateTime.now()) && fullMatchDateTime.isAfter(DateTime.now())) {
+        // Keep the scheduled time on match day
+        return scheduledTime;
+      }
+
+      return scheduledTime;
     }
   }
 

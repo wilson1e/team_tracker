@@ -20,12 +20,14 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
 
-  // Demo users for local fallback
-  static final Map<String, Map<String, String>> _demoUsers = {
-    'admin@team.com':  {'password': '1234',      'name': '教練',     'role': 'admin'},
-    'coach@team.com':  {'password': 'coach123',  'name': '教練助手', 'role': 'coach'},
-    'player@team.com': {'password': 'player123', 'name': '球員',     'role': 'player'},
-  };
+  // Demo users for local fallback (only in debug mode)
+  static final Map<String, Map<String, String>> _demoUsers = const bool.fromEnvironment('dart.vm.product')
+      ? {} // Empty in production
+      : {
+          'admin@team.com':  {'password': '1234',      'name': '教練',     'role': 'admin'},
+          'coach@team.com':  {'password': 'coach123',  'name': '教練助手', 'role': 'coach'},
+          'player@team.com': {'password': 'player123', 'name': '球員',     'role': 'player'},
+        };
 
   @override
   void dispose() {
