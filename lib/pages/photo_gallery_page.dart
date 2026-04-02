@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 /// 照片相簿頁面
 class PhotoGalleryPage extends StatefulWidget {
@@ -66,26 +67,58 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
   }
 
   Future<void> _pickImage() async {
+    // Beta limit: max 10 photos
+    if (_photos.length >= 10) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A2E),
+          title: const Text('測試版限制', style: TextStyle(color: Colors.white)),
+          content: const Text(
+            '測試版暫時只支援上傳 10 張照片。\n正式版將開放無限上傳。',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('知道了', style: TextStyle(color: Colors.orange)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
       if (image == null) return;
-
-      // TODO: 上傳到 Firebase Storage
-      // 目前先儲存路徑到 Firestore
-      await _savePhoto(image.path);
+      await _uploadPhoto(image);
     } catch (e) {
-      print('選擇照片失敗: $e');
+      debugPrint('選擇照片失敗: $e');
     }
   }
 
-  Future<void> _savePhoto(String path) async {
+  Future<void> _uploadPhoto(XFile image) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final uid = widget.ownerUid ?? user.uid;
+    final teamId = widget.inviteCode ?? widget.teamName;
+    final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final storagePath = 'teams/$uid/$teamId/photos/$fileName';
+
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      // Show uploading indicator
+      if (mounted) setState(() => _isLoading = true);
 
-      final uid = widget.ownerUid ?? user.uid;
-      final teamId = widget.inviteCode ?? widget.teamName;
+      // Upload to Firebase Storage
+      final ref = FirebaseStorage.instance.ref(storagePath);
+      await ref.putFile(File(image.path));
+      final downloadUrl = await ref.getDownloadURL();
 
+      // Save URL to Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
@@ -93,14 +126,21 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
           .doc(teamId)
           .collection('photos')
           .add({
-        'path': path,
+        'url': downloadUrl,
+        'storagePath': storagePath,
         'createdAt': FieldValue.serverTimestamp(),
         'uploadedBy': user.displayName ?? user.email,
       });
 
-      _loadPhotos();
+      await _loadPhotos();
     } catch (e) {
-      print('儲存照片失敗: $e');
+      debugPrint('上傳照片失敗: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('上傳失敗，請稍後再試'), backgroundColor: Colors.red),
+        );
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -127,10 +167,11 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
                   itemCount: _photos.length,
                   itemBuilder: (context, index) => _buildPhotoCard(_photos[index]),
                 ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _pickImage,
         backgroundColor: Colors.orange,
-        child: const Icon(Icons.add_photo_alternate),
+        icon: const Icon(Icons.add_photo_alternate),
+        label: Text('上傳照片 (${_photos.length}/10)'),
       ),
     );
   }
@@ -151,15 +192,22 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
   }
 
   Widget _buildPhotoCard(Map<String, dynamic> photo) {
-    final path = photo['path'] as String;
-    final file = File(path);
+    final url = photo['url'] as String?;
 
     return GestureDetector(
       onTap: () => _showPhotoDetail(photo),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: file.existsSync()
-            ? Image.file(file, fit: BoxFit.cover)
+        child: url != null
+            ? Image.network(url, fit: BoxFit.cover,
+                loadingBuilder: (_, child, progress) => progress == null
+                    ? child
+                    : const Center(child: CircularProgressIndicator(color: Colors.orange, strokeWidth: 2)),
+                errorBuilder: (_, __, ___) => Container(
+                  color: Colors.grey[800],
+                  child: const Icon(Icons.broken_image, color: Colors.white38),
+                ),
+              )
             : Container(
                 color: Colors.grey[800],
                 child: const Icon(Icons.broken_image, color: Colors.white38),
@@ -169,6 +217,7 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
   }
 
   void _showPhotoDetail(Map<String, dynamic> photo) {
+    final url = photo['url'] as String?;
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -176,10 +225,11 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.file(File(photo['path'] as String)),
-            ),
+            if (url != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(url),
+              ),
             const SizedBox(height: 16),
             Text(
               '上傳者: ${photo['uploadedBy'] ?? "未知"}',
