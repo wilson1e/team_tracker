@@ -30,6 +30,8 @@
 	<string>需要相機權限以掃描 QR 碼</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>需要日曆權限以查看賽程和活動</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>需要日曆權限以添加比賽和訓練到你的日曆</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>需要相簿權限以選擇照片</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

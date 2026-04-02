@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'providers/team_provider.dart';
 import 'services/storage_service.dart';
+import 'ad_service.dart';
 import 'login_page.dart';
 
 void main() async {
@@ -14,6 +15,9 @@ void main() async {
   try {
     // Initialize Firebase
     await Firebase.initializeApp();
+
+    // Initialize AdMob
+    AdService.initialize();
 
     // Initialize storage
     final storageService = StorageService();

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class AdService {
@@ -19,9 +20,9 @@ class AdService {
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
-        onAdLoaded: (_) => print('Banner ad loaded'),
+        onAdLoaded: (_) => debugPrint('Banner ad loaded'),
         onAdFailedToLoad: (ad, error) {
-          print('Banner ad failed to load: $error');
+          debugPrint('Banner ad failed to load: $error');
           ad.dispose();
         },
       ),
@@ -51,7 +52,7 @@ class AdService {
           );
         },
         onAdFailedToLoad: (error) {
-          print('Interstitial ad failed to load: $error');
+          debugPrint('Interstitial ad failed to load: $error');
           _isInterstitialAdReady = false;
         },
       ),
