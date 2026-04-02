@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 class Match {
-  String date;
-  String time;
-  String location;
-  String league;
-  String homeAway; // 主場 or 客場
-  String opponent;
-  int? jerseyColorValue;
+  final String date;
+  final String time;
+  final String location;
+  final String league;
+  final String homeAway; // 主場 or 客場
+  final String opponent;
+  final int? jerseyColorValue;
 
   Match({
     required this.date,
@@ -20,10 +20,6 @@ class Match {
   }) : jerseyColorValue = jerseyColor?.toARGB32();
 
   Color? get jerseyColor => jerseyColorValue != null ? Color(jerseyColorValue!) : null;
-
-  set jerseyColor(Color? color) {
-    jerseyColorValue = color?.toARGB32();
-  }
 
   Map<String, dynamic> toJson() => {
     'date': date,

@@ -30,7 +30,7 @@ class SkeletonLoader extends StatelessWidget {
               height: 50,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha:0.1),
               ),
             ),
             const SizedBox(width: 16),
@@ -43,7 +43,7 @@ class SkeletonLoader extends StatelessWidget {
                     height: 16,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha:0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -52,7 +52,7 @@ class SkeletonLoader extends StatelessWidget {
                     height: 12,
                     width: 150,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.05),
+                      color: Colors.white.withValues(alpha:0.05),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -91,7 +91,7 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 80, color: Colors.white.withOpacity(0.2)),
+            Icon(icon, size: 80, color: Colors.white.withValues(alpha:0.2)),
             const SizedBox(height: 24),
             Text(
               title,

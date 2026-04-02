@@ -533,7 +533,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
         labelText:  label,
         labelStyle: const TextStyle(color: Colors.white70),
         filled:     true,
-        fillColor:  Colors.white.withOpacity(0.1),
+        fillColor:  Colors.white.withValues(alpha:0.1),
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12)),
         focusedBorder: OutlineInputBorder(
@@ -1471,7 +1471,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
               margin: const EdgeInsets.only(bottom: 8),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.white.withOpacity(0.06)),
+                side: BorderSide(color: Colors.white.withValues(alpha:0.06)),
               ),
               child: IntrinsicHeight(
                 child: Row(
@@ -1497,8 +1497,8 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                               width: 42, height: 42,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: posColor.withOpacity(0.12),
-                                border: Border.all(color: posColor.withOpacity(0.5), width: 1.5),
+                                color: posColor.withValues(alpha:0.12),
+                                border: Border.all(color: posColor.withValues(alpha:0.5), width: 1.5),
                               ),
                               child: Center(
                                 child: Text('${p['number']}',
@@ -1527,9 +1527,9 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: posColor.withOpacity(0.12),
+                                  color: posColor.withValues(alpha:0.12),
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: posColor.withOpacity(0.4)),
+                                  border: Border.all(color: posColor.withValues(alpha:0.4)),
                                 ),
                                 child: Text(pos,
                                   style: TextStyle(color: posColor,
@@ -1748,7 +1748,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                         color: (us! > them!
                                 ? Colors.green
                                 : Colors.red)
-                            .withOpacity(0.2),
+                            .withValues(alpha:0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text('$us - $them',
@@ -1885,7 +1885,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
               margin: const EdgeInsets.only(bottom: 8),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: Colors.white.withOpacity(0.06)),
+                side: BorderSide(color: Colors.white.withValues(alpha:0.06)),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(14),
@@ -1963,7 +1963,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha:0.05),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Row(
@@ -1989,7 +1989,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                               borderRadius: BorderRadius.circular(4),
                               child: LinearProgressIndicator(
                                 value: rate,
-                                backgroundColor: Colors.white.withOpacity(0.08),
+                                backgroundColor: Colors.white.withValues(alpha:0.08),
                                 valueColor: AlwaysStoppedAnimation<Color>(rateColor),
                                 minHeight: 5,
                               ),

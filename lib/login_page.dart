@@ -204,7 +204,7 @@ class _LoginPageState extends State<LoginPage> {
       prefixIcon:   Icon(icon, color: Colors.orange),
       suffixIcon:   suffixIcon,
       filled:       true,
-      fillColor:    Colors.white.withOpacity(0.1),
+      fillColor:    Colors.white.withValues(alpha:0.1),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide:   BorderSide.none,
@@ -278,7 +278,7 @@ class _LoginPageState extends State<LoginPage> {
                     // Toggle
                     Container(
                       decoration: BoxDecoration(
-                        color:        Colors.white.withOpacity(0.1),
+                        color:        Colors.white.withValues(alpha:0.1),
                         borderRadius: BorderRadius.circular(30),
                       ),
                       child: Row(

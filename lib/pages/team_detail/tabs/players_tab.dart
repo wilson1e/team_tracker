@@ -239,8 +239,8 @@ class _PlayersTabState extends State<PlayersTab> {
           height: 42,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: posColor.withOpacity(0.12),
-            border: Border.all(color: posColor.withOpacity(0.5), width: 1.5),
+            color: posColor.withValues(alpha:0.12),
+            border: Border.all(color: posColor.withValues(alpha:0.5), width: 1.5),
           ),
           child: Center(
             child: Text('${player['number']}',
@@ -253,7 +253,7 @@ class _PlayersTabState extends State<PlayersTab> {
         trailing: pos != '-' ? Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: posColor.withOpacity(0.12),
+            color: posColor.withValues(alpha:0.12),
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(pos, style: TextStyle(color: posColor, fontWeight: FontWeight.bold)),
@@ -266,7 +266,7 @@ class _PlayersTabState extends State<PlayersTab> {
     labelText: label,
     labelStyle: const TextStyle(color: Colors.white70),
     filled: true,
-    fillColor: Colors.white.withOpacity(0.1),
+    fillColor: Colors.white.withValues(alpha:0.1),
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),

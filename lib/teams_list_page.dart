@@ -143,6 +143,12 @@ class _TeamsListPageState extends State<TeamsListPage> {
 
   void _addTeam(String name, String? logoPath, String? homeJersey, String? awayJersey) {
     if (name.trim().isEmpty) return;
+    if (name.contains('/') || name.contains('.')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('球隊名稱不能包含 / 或 . 字符')),
+      );
+      return;
+    }
     final code = generateInviteCode();
     final user = FirebaseAuth.instance.currentUser;
     setState(() {
@@ -338,7 +344,7 @@ class _TeamsListPageState extends State<TeamsListPage> {
                     hintStyle:  const TextStyle(color: Colors.white38),
                     prefixIcon: const Icon(Icons.group, color: Colors.white54),
                     filled:     true,
-                    fillColor:  Colors.white.withOpacity(0.1),
+                    fillColor:  Colors.white.withValues(alpha:0.1),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide:   BorderSide.none,
@@ -441,7 +447,7 @@ class _TeamsListPageState extends State<TeamsListPage> {
                     hintStyle:  const TextStyle(color: Colors.white38),
                     prefixIcon: const Icon(Icons.group, color: Colors.white54),
                     filled:     true,
-                    fillColor:  Colors.white.withOpacity(0.1),
+                    fillColor:  Colors.white.withValues(alpha:0.1),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide:   BorderSide.none,
@@ -529,7 +535,7 @@ class _TeamsListPageState extends State<TeamsListPage> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color:        Colors.orange.withOpacity(0.2),
+                color:        Colors.orange.withValues(alpha:0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -598,7 +604,7 @@ class _TeamsListPageState extends State<TeamsListPage> {
                   hintText: 'XXXXXX',
                   hintStyle: const TextStyle(color: Colors.white24, fontSize: 24, letterSpacing: 6),
                   filled: true,
-                  fillColor: Colors.white.withOpacity(0.1),
+                  fillColor: Colors.white.withValues(alpha:0.1),
                   counterText: '',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
@@ -808,7 +814,7 @@ class _TeamsListPageState extends State<TeamsListPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.group_off,
-                          size: 80, color: Colors.white.withOpacity(0.3)),
+                          size: 80, color: Colors.white.withValues(alpha:0.3)),
                       const SizedBox(height: 16),
                       const Text('暫時未有球隊',
                           style: TextStyle(color: Colors.white70, fontSize: 18)),
@@ -933,6 +939,8 @@ class _TeamsListPageState extends State<TeamsListPage> {
                             if (team['isJoined'] == true) {
                               final user = FirebaseAuth.instance.currentUser;
                               if (user != null) {
+                                // Show loading overlay while fetching member role
+                                if (mounted) setState(() => _isLoading = true);
                                 try {
                                   final memberDoc = await FirebaseFirestore.instance
                                       .collection('users')
@@ -944,6 +952,7 @@ class _TeamsListPageState extends State<TeamsListPage> {
                                       .get();
                                   userRole = memberDoc.data()?['role'] as String?;
                                 } catch (_) {}
+                                if (mounted) setState(() => _isLoading = false);
                               }
                             }
                             await Navigator.push(

@@ -127,7 +127,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             style: TextStyle(color: Colors.white, fontSize: 16),
                           ),
                           trailing: DropdownButton<String>(
-                            value: _notificationTime,
+                            value: _timeOptions.contains(_notificationTime) ? _notificationTime : _timeOptions.first,
                             dropdownColor: const Color(0xFF1A1A2E),
                             style: const TextStyle(color: Colors.white),
                             underline: Container(),
@@ -153,7 +153,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: Text(
                     '提示：開啟通知後，系統會在設定的時間提醒你即將進行的比賽',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.5),
+                      color: Colors.white.withValues(alpha:0.5),
                       fontSize: 12,
                     ),
                   ),

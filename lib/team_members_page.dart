@@ -25,7 +25,7 @@ class _TeamMembersPageState extends State<TeamMembersPage> {
     final role = data['role'] ?? 'viewer';
 
     return Card(
-      color: Colors.white.withOpacity(0.05),
+      color: Colors.white.withValues(alpha:0.05),
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         leading: CircleAvatar(

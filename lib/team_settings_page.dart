@@ -116,7 +116,7 @@ class _TeamSettingsPageState extends State<TeamSettingsPage> {
                 labelText: '球隊名稱',
                 labelStyle: const TextStyle(color: Colors.white70),
                 filled: true,
-                fillColor: Colors.white.withOpacity(0.1),
+                fillColor: Colors.white.withValues(alpha:0.1),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),

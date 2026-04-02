@@ -181,7 +181,7 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.photo_library, size: 80, color: Colors.white.withOpacity(0.2)),
+          Icon(Icons.photo_library, size: 80, color: Colors.white.withValues(alpha:0.2)),
           const SizedBox(height: 16),
           const Text('暫時未有照片', style: TextStyle(color: Colors.white70, fontSize: 18)),
           const SizedBox(height: 8),
@@ -216,6 +216,35 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
     );
   }
 
+  Future<void> _deletePhoto(Map<String, dynamic> photo) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final uid = widget.ownerUid ?? user.uid;
+    final teamId = widget.inviteCode ?? widget.teamName;
+    try {
+      final storagePath = photo['storagePath'] as String?;
+      if (storagePath != null) {
+        await FirebaseStorage.instance.ref(storagePath).delete();
+      }
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('teams')
+          .doc(teamId)
+          .collection('photos')
+          .doc(photo['id'] as String)
+          .delete();
+      await _loadPhotos();
+    } catch (e) {
+      debugPrint('刪除照片失敗: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('刪除失敗，請稍後再試'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   void _showPhotoDetail(Map<String, dynamic> photo) {
     final url = photo['url'] as String?;
     showDialog(
@@ -228,12 +257,28 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
             if (url != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(url),
+                child: InteractiveViewer(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.7,
+                    ),
+                    child: Image.network(url, fit: BoxFit.contain),
+                  ),
+                ),
               ),
             const SizedBox(height: 16),
             Text(
               '上傳者: ${photo['uploadedBy'] ?? "未知"}',
               style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await _deletePhoto(photo);
+              },
+              icon: const Icon(Icons.delete, color: Colors.red),
+              label: const Text('刪除照片', style: TextStyle(color: Colors.red)),
             ),
           ],
         ),
