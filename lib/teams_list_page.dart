@@ -289,6 +289,28 @@ class _TeamsListPageState extends State<TeamsListPage> {
   // ── Dialogs ────────────────────────────────────────────────────
 
   void _showAddTeamDialog() {
+    // Beta limit: max 1 team
+    final ownedTeams = _teams.where((t) => t['isJoined'] != true).toList();
+    if (ownedTeams.length >= 1) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A2E),
+          title: const Text('測試版限制', style: TextStyle(color: Colors.white)),
+          content: const Text(
+            '測試版暫時只支援 1 個球隊。\n正式版將開放更多球隊功能。',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('知道了', style: TextStyle(color: Colors.orange)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     final nameController = TextEditingController();
     String? selectedLogoPath;
     String? selectedHomeJersey;
