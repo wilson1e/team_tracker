@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 
 import 'services/storage_service.dart';
 import 'ad_service.dart';
@@ -16,6 +17,8 @@ void main() async {
       const Duration(seconds: 10),
       onTimeout: () => throw Exception('Firebase init timed out'),
     );
+    // Capture Flutter errors and send to Crashlytics
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
   } catch (e) {
     debugPrint('Firebase.initializeApp failed: $e');
     // Continue anyway — login page will show Firebase errors inline
