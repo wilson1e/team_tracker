@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -8,24 +10,11 @@ import 'ad_service.dart';
 import 'theme_service.dart';
 import 'login_page.dart';
 
+/// Completes when Firebase is ready; LoginPage awaits this before signing in.
+final firebaseReady = Completer<void>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Firebase with timeout — prevents black screen if Firebase hangs
-  try {
-    await Firebase.initializeApp().timeout(
-      const Duration(seconds: 10),
-      onTimeout: () => throw Exception('Firebase init timed out'),
-    );
-    // Capture Flutter errors and send to Crashlytics
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-  } catch (e) {
-    debugPrint('Firebase.initializeApp failed: $e');
-    // Continue anyway — login page will show Firebase errors inline
-  }
-
-  // AdMob init is already non-fatal with its own timeout
-  await AdService.initialize();
 
   final storageService = StorageService();
   try {
@@ -34,7 +23,23 @@ void main() async {
     debugPrint('StorageService.init failed: $e');
   }
 
+  // Run app immediately to avoid iOS black screen
   runApp(TeamTrackerApp(storageService: storageService));
+
+  // Init Firebase + AdMob in background after UI is visible
+  await Future.delayed(const Duration(milliseconds: 500));
+  try {
+    await Firebase.initializeApp().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => throw Exception('Firebase init timed out'),
+    );
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  } catch (e) {
+    debugPrint('Firebase.initializeApp failed: $e');
+  } finally {
+    firebaseReady.complete();
+  }
+  AdService.initialize();
 }
 
 class TeamTrackerApp extends StatelessWidget {

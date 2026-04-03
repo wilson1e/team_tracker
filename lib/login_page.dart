@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'main.dart' show firebaseReady;
+
 import 'teams_list_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -90,6 +92,8 @@ class _LoginPageState extends State<LoginPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => isLoading = true);
     try {
+      // Wait for Firebase to be ready (background init on iOS)
+      await firebaseReady.future;
       if (isLoginMode) {
         await _login();
       } else {
