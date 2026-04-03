@@ -11,23 +11,47 @@ import 'login_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(const _DiagnosticApp());
+  // Initialize Firebase with timeout — prevents black screen if Firebase hangs
+  try {
+    await Firebase.initializeApp().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => throw Exception('Firebase init timed out'),
+    );
+    // Capture Flutter errors and send to Crashlytics
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  } catch (e) {
+    debugPrint('Firebase.initializeApp failed: $e');
+    // Continue anyway — login page will show Firebase errors inline
+  }
+
+  // AdMob init is already non-fatal with its own timeout
+  await AdService.initialize();
+
+  final storageService = StorageService();
+  try {
+    await storageService.init();
+  } catch (e) {
+    debugPrint('StorageService.init failed: $e');
+  }
+
+  runApp(TeamTrackerApp(storageService: storageService));
 }
 
-class _DiagnosticApp extends StatelessWidget {
-  const _DiagnosticApp();
+class TeamTrackerApp extends StatelessWidget {
+  final StorageService storageService;
+
+  const TeamTrackerApp({super.key, required this.storageService});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        backgroundColor: Colors.red,
-        body: Center(
-          child: Text(
-            'Flutter OK',
-            style: TextStyle(color: Colors.white, fontSize: 32),
-          ),
+    return ChangeNotifierProvider(
+      create: (_) => ThemeService(),
+      child: Consumer<ThemeService>(
+        builder: (_, themeService, __) => MaterialApp(
+          title: '籃球隊管理',
+          debugShowCheckedModeBanner: false,
+          theme: themeService.themeData,
+          home: const LoginPage(),
         ),
       ),
     );
