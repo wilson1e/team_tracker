@@ -10,35 +10,47 @@ import 'ad_service.dart';
 import 'theme_service.dart';
 import 'login_page.dart';
 
-/// Completes when Firebase is ready; LoginPage awaits this before signing in.
-final firebaseReady = Completer<void>();
+/// Completes with true when Firebase is ready, false if init failed.
+/// LoginPage._submit() awaits this before signing in.
+final firebaseReady = Completer<bool>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final storageService = StorageService();
+
+  // Run app immediately to avoid iOS black screen
+  runApp(TeamTrackerApp(storageService: storageService));
+
+  // Wait for first frame to render before starting heavy init
+  final frameCompleter = Completer<void>();
+  WidgetsBinding.instance.addPostFrameCallback((_) => frameCompleter.complete());
+  await frameCompleter.future;
+
+  // StorageService init deferred to after first frame
   try {
     await storageService.init();
   } catch (e) {
     debugPrint('StorageService.init failed: $e');
   }
 
-  // Run app immediately to avoid iOS black screen
-  runApp(TeamTrackerApp(storageService: storageService));
-
-  // Init Firebase + AdMob in background after UI is visible
-  await Future.delayed(const Duration(milliseconds: 500));
+  // Firebase init
   try {
     await Firebase.initializeApp().timeout(
       const Duration(seconds: 10),
       onTimeout: () => throw Exception('Firebase init timed out'),
     );
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    try {
+      FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    } catch (e) {
+      debugPrint('Crashlytics setup failed: $e');
+    }
+    firebaseReady.complete(true);
   } catch (e) {
     debugPrint('Firebase.initializeApp failed: $e');
-  } finally {
-    firebaseReady.complete();
+    firebaseReady.complete(false);
   }
+
   AdService.initialize();
 }
 

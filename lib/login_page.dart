@@ -93,7 +93,11 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => isLoading = true);
     try {
       // Wait for Firebase to be ready (background init on iOS)
-      await firebaseReady.future;
+      final firebaseOk = await firebaseReady.future;
+      if (!firebaseOk) {
+        _showError('Firebase 無法連接，請重啟 App');
+        return;
+      }
       if (isLoginMode) {
         await _login();
       } else {
