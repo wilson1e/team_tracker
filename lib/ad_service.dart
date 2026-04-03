@@ -9,21 +9,13 @@ class AdService {
   static bool _isInterstitialAdReady = false;
 
   // Ad unit IDs — swap the TODO values for real IDs before release
-  static String get bannerAdUnitId => const bool.fromEnvironment('dart.vm.product')
-      ? (Platform.isIOS
-          ? 'ca-app-pub-3940256099942544/2934735716'   // TODO: replace with real iOS banner ID
-          : 'ca-app-pub-3940256099942544/6300978111')  // TODO: replace with real Android banner ID
-      : (Platform.isIOS
-          ? 'ca-app-pub-3940256099942544/2934735716'
-          : 'ca-app-pub-3940256099942544/6300978111');
+  static String get bannerAdUnitId => Platform.isIOS
+      ? 'ca-app-pub-4385478710579461/3407504997'
+      : 'ca-app-pub-3940256099942544/6300978111'; // TODO: replace with real Android banner ID
 
-  static String get interstitialAdUnitId => const bool.fromEnvironment('dart.vm.product')
-      ? (Platform.isIOS
-          ? 'ca-app-pub-3940256099942544/4411468910'   // TODO: replace with real iOS interstitial ID
-          : 'ca-app-pub-3940256099942544/1033173712')  // TODO: replace with real Android interstitial ID
-      : (Platform.isIOS
-          ? 'ca-app-pub-3940256099942544/4411468910'
-          : 'ca-app-pub-3940256099942544/1033173712');
+  static String get interstitialAdUnitId => Platform.isIOS
+      ? 'ca-app-pub-4385478710579461/5427163670'
+      : 'ca-app-pub-3940256099942544/1033173712'; // TODO: replace with real Android interstitial ID
 
   static Future<void> initialize() async {
     try {
