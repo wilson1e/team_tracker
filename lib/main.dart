@@ -10,23 +10,28 @@ import 'login_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Firebase with timeout — prevents black screen if Firebase hangs
   try {
-    await Firebase.initializeApp();
-    await AdService.initialize();
-
-    final storageService = StorageService();
-    await storageService.init();
-
-    runApp(TeamTrackerApp(storageService: storageService));
+    await Firebase.initializeApp().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => throw Exception('Firebase init timed out'),
+    );
   } catch (e) {
-    runApp(MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('初始化失敗: $e', style: const TextStyle(color: Colors.red)),
-        ),
-      ),
-    ));
+    debugPrint('Firebase.initializeApp failed: $e');
+    // Continue anyway — login page will show Firebase errors inline
   }
+
+  // AdMob init is already non-fatal with its own timeout
+  await AdService.initialize();
+
+  final storageService = StorageService();
+  try {
+    await storageService.init();
+  } catch (e) {
+    debugPrint('StorageService.init failed: $e');
+  }
+
+  runApp(TeamTrackerApp(storageService: storageService));
 }
 
 class TeamTrackerApp extends StatelessWidget {
