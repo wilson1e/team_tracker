@@ -1,11 +1,16 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'ad_service.dart';
+import 'firebase_options.dart';
+import 'login_page.dart';
 import 'services/storage_service.dart';
 import 'theme_service.dart';
-import 'login_page.dart';
 
 /// Completes with true when Firebase is ready, false if init failed.
 /// LoginPage._submit() awaits this before signing in.
@@ -14,11 +19,28 @@ final firebaseReady = Completer<bool>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 1. Storage
   final storageService = StorageService();
+  await storageService.init();
 
-  // DIAGNOSTIC: Firebase removed — testing if basic UI renders on iOS
-  // Complete firebaseReady immediately so login page is not blocked
-  firebaseReady.complete(true);
+  // 2. Firebase
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    firebaseReady.complete(true);
+  } catch (e) {
+    debugPrint('Firebase init failed: $e');
+    firebaseReady.complete(false);
+  }
+
+  // 3. ATT（iOS 14.5+，AdMob 顯示廣告前必須請求）
+  if (Platform.isIOS) {
+    await AppTrackingTransparency.requestTrackingAuthorization();
+  }
+
+  // 4. AdMob
+  await AdService.initialize();
 
   runApp(TeamTrackerApp(storageService: storageService));
 }
@@ -33,14 +55,11 @@ class TeamTrackerApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => ThemeService(),
       child: Consumer<ThemeService>(
-        builder: (_, themeService, __) => MaterialApp(
+        builder: (context, themeService, child) => MaterialApp(
           title: '籃球隊管理',
           debugShowCheckedModeBanner: false,
           theme: themeService.themeData,
-          home: const Scaffold(
-            backgroundColor: Colors.red,
-            body: Center(child: Text('TEST', style: TextStyle(fontSize: 48))),
-          ),
+          home: const LoginPage(),
         ),
       ),
     );
