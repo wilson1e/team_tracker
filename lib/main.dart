@@ -37,7 +37,10 @@ class TeamTrackerApp extends StatelessWidget {
           title: '籃球隊管理',
           debugShowCheckedModeBanner: false,
           theme: themeService.themeData,
-          home: const LoginPage(),
+          home: const Scaffold(
+            backgroundColor: Colors.red,
+            body: Center(child: Text('TEST', style: TextStyle(fontSize: 48))),
+          ),
         ),
       ),
     );
