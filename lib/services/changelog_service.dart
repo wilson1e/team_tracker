@@ -13,14 +13,14 @@ class ChangelogService {
   static const _seenKey = 'changelog_seen_version';
 
   // ── 每次更新版本時修改這裡 ──────────────────────────────────────
-  static const String currentVersion = '1.0.0+8';
+  static const String currentVersion = '1.0.0+12';
 
   static const List<ChangelogEntry> entries = [
-    ChangelogEntry(Icons.bug_report,    Color(0xFF4CAF50), '修復 iOS 啟動黑屏問題'),
-    ChangelogEntry(Icons.label,         Color(0xFF2196F3), '修正 Android App 顯示名稱'),
-    ChangelogEntry(Icons.info_outline,  Colors.orange,     '登入頁右下角顯示版本號'),
-    ChangelogEntry(Icons.note_add,      Colors.orange,     '比賽記錄新增備註欄'),
-    ChangelogEntry(Icons.lock_outline,  Colors.white54,    '匯出報表功能將於正式版開放'),
+    ChangelogEntry(Icons.event_available, Color(0xFF4CAF50), '球員出席記錄頁面：點擊球員查看最近10場比賽及訓練出席率'),
+    ChangelogEntry(Icons.sync,            Color(0xFF2196F3), '修復球員數量顯示及出席點名功能'),
+    ChangelogEntry(Icons.tune,            Colors.orange,     '通知時間改為滑桿自選（1-24小時前）'),
+    ChangelogEntry(Icons.sports_score,    Colors.orange,     '比賽比數顯示勝/負/和標籤'),
+    ChangelogEntry(Icons.group,           Colors.white54,    '測試版限制：每人最多1支球隊'),
   ];
   // ────────────────────────────────────────────────────────────────
 

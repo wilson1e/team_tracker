@@ -1764,25 +1764,6 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                           style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w600))),
-                  if (hasScore)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: (us! > them!
-                                ? Colors.green
-                                : Colors.red)
-                            .withValues(alpha:0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text('$us - $them',
-                          style: TextStyle(
-                              color: us > them
-                                  ? Colors.green
-                                  : Colors.red,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13)),
-                    ),
                 ]),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1807,38 +1788,70 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                     ],
                   ],
                 ),
-                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                      IconButton(
-                        icon: const Icon(Icons.calendar_today, color: Colors.blue),
-                        onPressed: () async {
-                          try {
-                            final success = await CalendarService.addMatchToCalendar(
-                              teamName: widget.teamName,
-                              opponent: m['opponent'] as String,
-                              dateTime: DateTime.parse('${m['date']} ${m['time']}'),
-                              venue: m['venue'] as String,
-                              league: m['league'] as String,
-                              isHome: m['isHome'] == true,
-                            );
-                            if (mounted) {
-                              _showMessage(success ? '已添加到日曆' : '已取消或不支持');
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              _showMessage('日期格式錯誤');
-                            }
-                          }
-                        },
-                      ),
-                      if (canEdit) ...[
-                        IconButton(
-                            icon:      const Icon(Icons.edit, color: Colors.orange),
-                            onPressed: () => _editMatch(index)),
-                        IconButton(
-                            icon:      const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteMatch(index)),
+                trailing: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (hasScore)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            margin: const EdgeInsets.only(bottom: 2),
+                            decoration: BoxDecoration(
+                              color: (us! > them!
+                                      ? Colors.green
+                                      : us < them
+                                          ? Colors.red
+                                          : Colors.white)
+                                  .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '$us - $them ${us > them ? "勝" : us < them ? "負" : "和"}',
+                              style: TextStyle(
+                                color: us > them
+                                    ? Colors.green
+                                    : us < them
+                                        ? Colors.red
+                                        : Colors.white70,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        Row(mainAxisSize: MainAxisSize.min, children: [
+                          IconButton(
+                            icon: const Icon(Icons.calendar_today, color: Colors.blue),
+                            onPressed: () async {
+                              try {
+                                final success = await CalendarService.addMatchToCalendar(
+                                  teamName: widget.teamName,
+                                  opponent: m['opponent'] as String,
+                                  dateTime: DateTime.parse('${m['date']} ${m['time']}'),
+                                  venue: m['venue'] as String,
+                                  league: m['league'] as String,
+                                  isHome: m['isHome'] == true,
+                                );
+                                if (mounted) {
+                                  _showMessage(success ? '已添加到日曆' : '已取消或不支持');
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  _showMessage('日期格式錯誤');
+                                }
+                              }
+                            },
+                          ),
+                          if (canEdit) ...[
+                            IconButton(
+                                icon:      const Icon(Icons.edit, color: Colors.orange),
+                                onPressed: () => _editMatch(index)),
+                            IconButton(
+                                icon:      const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () => _deleteMatch(index)),
+                          ],
+                        ]),
                       ],
-                    ]),
+                    ),
               ),
             );
           }),
@@ -2188,6 +2201,9 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
               ownerUid: widget.ownerUid,
               isJoined: widget.isJoined,
               userRole: widget.userRole,
+              onPlayersChanged: (players) => setState(() => _players = players),
+              matches: _matches,
+              training: _training,
             ),
             _buildMatchTab(),
             _buildTrainingTab(),

@@ -13,16 +13,9 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final _notificationService = NotificationService();
   bool _notificationsEnabled = true;
-  String _notificationTime = '09:00';
+  int _notificationHours = 3;
   bool _isDarkMode = true;
   bool _isLoading = true;
-
-  final _timeOptions = [
-    '09:00',
-    '3小時前',
-    '1小時前',
-    '30分鐘前',
-  ];
 
   @override
   void initState() {
@@ -33,10 +26,14 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     final enabled = await _notificationService.isEnabled();
-    final time = await _notificationService.getNotificationTime();
+    final timeStr = await _notificationService.getNotificationTime();
+    int hours = 3;
+    if (timeStr.contains('小時前')) {
+      hours = int.tryParse(timeStr.replaceAll('小時前', '').trim()) ?? 3;
+    }
     setState(() {
       _notificationsEnabled = enabled;
-      _notificationTime = time;
+      _notificationHours = hours.clamp(1, 24);
       _isDarkMode = prefs.getBool('isDarkMode') ?? true;
       _isLoading = false;
     });
@@ -53,10 +50,9 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _notificationsEnabled = value);
   }
 
-  Future<void> _changeNotificationTime(String? value) async {
-    if (value == null) return;
-    await _notificationService.setNotificationTime(value);
-    setState(() => _notificationTime = value);
+  Future<void> _changeNotificationHours(int hours) async {
+    await _notificationService.setNotificationTime('$hours小時前');
+    setState(() => _notificationHours = hours);
   }
 
   @override
@@ -122,23 +118,33 @@ class _SettingsPageState extends State<SettingsPage> {
                       // 通知時間選擇
                       if (_notificationsEnabled) ...[
                         const Divider(color: Colors.white24, height: 1),
-                        ListTile(
-                          title: const Text(
-                            '通知時間',
-                            style: TextStyle(color: Colors.white, fontSize: 16),
-                          ),
-                          trailing: DropdownButton<String>(
-                            value: _timeOptions.contains(_notificationTime) ? _notificationTime : _timeOptions.first,
-                            dropdownColor: const Color(0xFF1A1A2E),
-                            style: const TextStyle(color: Colors.white),
-                            underline: Container(),
-                            items: _timeOptions.map((time) {
-                              return DropdownMenuItem(
-                                value: time,
-                                child: Text(time),
-                              );
-                            }).toList(),
-                            onChanged: _changeNotificationTime,
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '比賽前 $_notificationHours 小時通知',
+                                style: const TextStyle(color: Colors.white, fontSize: 16),
+                              ),
+                              Slider(
+                                value: _notificationHours.toDouble(),
+                                min: 1,
+                                max: 24,
+                                divisions: 23,
+                                activeColor: Colors.orange,
+                                inactiveColor: Colors.white24,
+                                label: '$_notificationHours 小時',
+                                onChanged: (v) => _changeNotificationHours(v.round()),
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: const [
+                                  Text('1 小時', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                                  Text('24 小時', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ],

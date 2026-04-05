@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../services/data/player_service.dart';
+import '../../player_attendance_page.dart';
 
 /// 球員管理 Tab
 /// 從 team_detail_page.dart 拆分出來
@@ -9,6 +10,9 @@ class PlayersTab extends StatefulWidget {
   final String? ownerUid;
   final bool isJoined;
   final String? userRole;
+  final ValueChanged<List<Map<String, dynamic>>>? onPlayersChanged;
+  final List<Map<String, dynamic>> matches;
+  final List<Map<String, dynamic>> training;
 
   const PlayersTab({
     super.key,
@@ -17,6 +21,9 @@ class PlayersTab extends StatefulWidget {
     this.ownerUid,
     this.isJoined = false,
     this.userRole,
+    this.onPlayersChanged,
+    this.matches = const [],
+    this.training = const [],
   });
 
   @override
@@ -55,7 +62,10 @@ class _PlayersTabState extends State<PlayersTab> {
       ownerUid: widget.ownerUid,
     );
     final players = await service.loadFromCloud();
-    if (mounted) setState(() => _players = players);
+    if (mounted) {
+      setState(() => _players = players);
+      widget.onPlayersChanged?.call(_players);
+    }
   }
 
   Future<void> _savePlayers() async {
@@ -65,6 +75,7 @@ class _PlayersTabState extends State<PlayersTab> {
       ownerUid: widget.ownerUid,
     );
     await service.syncToCloud(_players);
+    widget.onPlayersChanged?.call(_players);
   }
 
   void _addPlayer() {
@@ -253,6 +264,16 @@ class _PlayersTabState extends State<PlayersTab> {
         title: Text(player['name'], style: const TextStyle(color: Colors.white)),
         subtitle: Text('${player['height']} cm · ${player['weight']} kg',
             style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PlayerAttendancePage(
+              playerName: player['name'],
+              matches: widget.matches,
+              training: widget.training,
+            ),
+          ),
+        ),
         trailing: pos != '-' ? Wrap(
           spacing: 4,
           children: pos.split('/').map((p) {

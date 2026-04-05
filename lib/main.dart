@@ -18,16 +18,21 @@ final firebaseReady = Completer<bool>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  debugPrint('=== main.dart: START ===');
 
   // 1. Storage
+  debugPrint('=== main.dart: Init StorageService ===');
   final storageService = StorageService();
   await storageService.init();
+  debugPrint('=== main.dart: StorageService done ===');
 
   // 2. Firebase
+  debugPrint('=== main.dart: Init Firebase ===');
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    debugPrint('=== main.dart: Firebase INIT SUCCESS ===');
     firebaseReady.complete(true);
   } catch (e) {
     debugPrint('Firebase init failed: $e');
@@ -36,13 +41,22 @@ void main() async {
 
   // 3. ATT（iOS 14.5+，AdMob 顯示廣告前必須請求）
   if (Platform.isIOS) {
-    await AppTrackingTransparency.requestTrackingAuthorization();
+    try {
+      await AppTrackingTransparency.requestTrackingAuthorization()
+          .timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('ATT request failed (non-fatal): $e');
+    }
   }
 
   // 4. AdMob
+  debugPrint('=== main.dart: Init AdMob ===');
   await AdService.initialize();
+  debugPrint('=== main.dart: AdMob done ===');
 
+  debugPrint('=== main.dart: Calling runApp ===');
   runApp(TeamTrackerApp(storageService: storageService));
+  debugPrint('=== main.dart: runApp returned (should not happen) ===');
 }
 
 class TeamTrackerApp extends StatelessWidget {
