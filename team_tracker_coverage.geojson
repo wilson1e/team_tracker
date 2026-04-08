@@ -1,0 +1,24 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Hong Kong Coverage - Team Tracker",
+        "description": "App supported region for Team Tracker basketball team management app"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [113.85, 22.15],
+            [114.45, 22.15],
+            [114.45, 22.55],
+            [113.85, 22.55],
+            [113.85, 22.15]
+          ]
+        ]
+      }
+    }
+  ]
+}
