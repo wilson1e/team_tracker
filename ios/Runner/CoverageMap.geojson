@@ -1,0 +1,16 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Team Tracker App Coverage",
+        "description": "This app does not provide routing services. This file is a placeholder for App Store compliance."
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [114.1694, 22.3193]
+      }
+    }
+  ]
+}

@@ -38,7 +38,7 @@ class Match {
     league: json['league'] ?? '',
     homeAway: json['homeAway'] ?? '',
     opponent: json['opponent'] ?? '',
-    jerseyColor: json['jerseyColor'] != null ? Color(json['jerseyColor']) : null,
+    jerseyColor: json['jerseyColor'] != null ? Color(json['jerseyColor'] as int) : null,
   );
 
   Match copyWith({

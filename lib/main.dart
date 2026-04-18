@@ -1,14 +1,14 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'ad_service.dart';
 import 'firebase_options.dart';
 import 'login_page.dart';
+import 'platform_service.dart';
 import 'services/storage_service.dart';
 import 'theme_service.dart';
 
@@ -40,18 +40,11 @@ void main() async {
   }
 
   // 3. ATT（iOS 14.5+，AdMob 顯示廣告前必須請求）
-  if (Platform.isIOS) {
-    try {
-      await AppTrackingTransparency.requestTrackingAuthorization()
-          .timeout(const Duration(seconds: 5));
-    } catch (e) {
-      debugPrint('ATT request failed (non-fatal): $e');
-    }
-  }
+  await requestATT();
 
   // 4. AdMob
   debugPrint('=== main.dart: Init AdMob ===');
-  await AdService.initialize();
+  if (!kIsWeb) await AdService.initialize();
   debugPrint('=== main.dart: AdMob done ===');
 
   debugPrint('=== main.dart: Calling runApp ===');

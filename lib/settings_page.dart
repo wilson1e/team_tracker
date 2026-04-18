@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'notification_service.dart';
 import 'services/changelog_service.dart';
+import 'pages/subscription_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -14,7 +14,6 @@ class _SettingsPageState extends State<SettingsPage> {
   final _notificationService = NotificationService();
   bool _notificationsEnabled = true;
   int _notificationHours = 3;
-  bool _isDarkMode = true;
   bool _isLoading = true;
 
   @override
@@ -24,7 +23,6 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
     final enabled = await _notificationService.isEnabled();
     final timeStr = await _notificationService.getNotificationTime();
     int hours = 3;
@@ -34,15 +32,8 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() {
       _notificationsEnabled = enabled;
       _notificationHours = hours.clamp(1, 24);
-      _isDarkMode = prefs.getBool('isDarkMode') ?? true;
       _isLoading = false;
     });
-  }
-
-  Future<void> _toggleTheme(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isDarkMode', value);
-    setState(() => _isDarkMode = value);
   }
 
   Future<void> _toggleNotifications(bool value) async {
@@ -69,29 +60,6 @@ class _SettingsPageState extends State<SettingsPage> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                // 主題設定
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF16213E),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: SwitchListTile(
-                    title: const Text(
-                      '深色主題',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                    subtitle: Text(
-                      _isDarkMode ? '深色模式' : '淺色模式',
-                      style: const TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                    value: _isDarkMode,
-                    activeColor: Colors.white,
-                    onChanged: _toggleTheme,
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
                 // 通知設定區塊
                 Container(
                   decoration: BoxDecoration(
@@ -149,6 +117,26 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ],
                     ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // 訂閱方案
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF16213E),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ListTile(
+                    leading: const Icon(Icons.workspace_premium, color: Colors.orange),
+                    title: const Text('訂閱方案',
+                        style: TextStyle(color: Colors.white, fontSize: 16)),
+                    subtitle: const Text('查看及升級訂閱方案',
+                        style: TextStyle(color: Colors.white54, fontSize: 13)),
+                    trailing: const Icon(Icons.chevron_right, color: Colors.white38),
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const SubscriptionPage())),
                   ),
                 ),
 

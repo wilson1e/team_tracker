@@ -13,14 +13,20 @@ class ChangelogService {
   static const _seenKey = 'changelog_seen_version';
 
   // ── 每次更新版本時修改這裡 ──────────────────────────────────────
-  static const String currentVersion = '1.0.0+12';
+  static const String currentVersion = '1.0.0+19';
 
   static const List<ChangelogEntry> entries = [
-    ChangelogEntry(Icons.event_available, Color(0xFF4CAF50), '球員出席記錄頁面：點擊球員查看最近10場比賽及訓練出席率'),
-    ChangelogEntry(Icons.sync,            Color(0xFF2196F3), '修復球員數量顯示及出席點名功能'),
-    ChangelogEntry(Icons.tune,            Colors.orange,     '通知時間改為滑桿自選（1-24小時前）'),
-    ChangelogEntry(Icons.sports_score,    Colors.orange,     '比賽比數顯示勝/負/和標籤'),
-    ChangelogEntry(Icons.group,           Colors.white54,    '測試版限制：每人最多1支球隊'),
+    ChangelogEntry(Icons.shopping_cart, Colors.orange,            'App Store 內購正式啟用：訂閱標準版／專業版及球隊擴展包，可於設定 → 訂閱方案直接購買'),
+    ChangelogEntry(Icons.search,           Colors.orange,            '場地關鍵字搜索：比賽、訓練及日常練習的場地選擇改為搜索面板，即時過濾並保留地區分組'),
+    ChangelogEntry(Icons.lock_reset,       Colors.blue,              '忘記密碼：登入頁加入「忘記密碼？」按鈕，輸入 Email 即可收到重設密碼郵件'),
+    ChangelogEntry(Icons.calendar_month,   Colors.green,             '一鍵新增日常練習：選擇星期幾及月份，自動新增當月所有對應日期的訓練記錄'),
+    ChangelogEntry(Icons.list_alt,         Colors.green,             '訓練細項：可為每次訓練新增射球、跑步、自訂項目，記錄每名球員成績及達標率'),
+    ChangelogEntry(Icons.login,            Colors.orange,            '登入頁面記住密碼：勾選後下次自動填入 Email 及密碼'),
+    ChangelogEntry(Icons.edit,             Colors.blue,              '球隊設定按鈕移至球隊列表卡片編輯，內部頁面更簡潔'),
+    ChangelogEntry(Icons.dark_mode,        Colors.white70,           '介面固定深色主題，移除主題切換選項'),
+    ChangelogEntry(Icons.menu,             Colors.orange,             '左側選單：加入球隊、設定、重新整理、登出'),
+    ChangelogEntry(Icons.event_available,  Color(0xFF4CAF50), '球員出席記錄頁面：點擊球員查看最近比賽及訓練出席率'),
+    ChangelogEntry(Icons.tune,             Colors.orange,     '通知時間改為滑桿自選（1-24小時前）'),
   ];
   // ────────────────────────────────────────────────────────────────
 

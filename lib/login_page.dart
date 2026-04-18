@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'main.dart' show firebaseReady;
 
@@ -18,6 +19,7 @@ class _LoginPageState extends State<LoginPage> {
   bool isLoginMode = true;
   bool isLoading = false;
   bool _obscurePassword = true;
+  bool _rememberPassword = false;
   String _version = '';
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
@@ -30,6 +32,32 @@ class _LoginPageState extends State<LoginPage> {
     PackageInfo.fromPlatform().then((info) {
       if (mounted) setState(() => _version = 'v${info.version}+${info.buildNumber}');
     });
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('saved_email') ?? '';
+    final remember = prefs.getBool('remember_password') ?? false;
+    final password = remember ? (prefs.getString('saved_password') ?? '') : '';
+    if (mounted) {
+      setState(() {
+        _rememberPassword = remember;
+        if (email.isNotEmpty) _emailController.text = email;
+        if (password.isNotEmpty) _passwordController.text = password;
+      });
+    }
+  }
+
+  Future<void> _saveCredentials(String email, String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('saved_email', email);
+    await prefs.setBool('remember_password', _rememberPassword);
+    if (_rememberPassword) {
+      await prefs.setString('saved_password', password);
+    } else {
+      await prefs.remove('saved_password');
+    }
   }
 
   @override
@@ -47,6 +75,72 @@ class _LoginPageState extends State<LoginPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: Colors.red),
     );
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final emailCtrl = TextEditingController(text: _emailController.text.trim());
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        title: const Text('重設密碼', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('輸入你的 Email，我們會發送重設密碼連結。',
+                style: TextStyle(color: Colors.white70, fontSize: 13)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: emailCtrl,
+              style: const TextStyle(color: Colors.white),
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: 'Email',
+                labelStyle: const TextStyle(color: Colors.white70),
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.1),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.orange),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            onPressed: () async {
+              final email = emailCtrl.text.trim();
+              if (email.isEmpty || !email.contains('@')) {
+                return;
+              }
+              Navigator.pop(ctx);
+              try {
+                await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('重設密碼郵件已發送，請檢查你的信箱'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) _showError('發送失敗，請確認 Email 是否正確');
+              }
+            },
+            child: const Text('發送', style: TextStyle(color: Colors.black)),
+          ),
+        ],
+      ),
+    );
+    emailCtrl.dispose();
   }
 
   // ── Firebase helpers ───────────────────────────────────────────
@@ -124,6 +218,7 @@ class _LoginPageState extends State<LoginPage> {
       // Ensure doc exists (handles users who registered before this fix)
       await _upsertUserDoc(uid: uid, email: email, name: name, role: 'player');
 
+      await _saveCredentials(email, password);
       _navigateToHome(email: email, name: name);
       return;
     } on FirebaseAuthException catch (e) {
@@ -367,7 +462,25 @@ class _LoginPageState extends State<LoginPage> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 8),
+
+                    // 記住密碼（只在登入模式顯示）
+                    if (isLoginMode)
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _rememberPassword,
+                            activeColor: Colors.orange,
+                            checkColor: Colors.white,
+                            side: const BorderSide(color: Colors.white54),
+                            onChanged: (v) => setState(() => _rememberPassword = v ?? false),
+                          ),
+                          const Text('記住密碼',
+                              style: TextStyle(color: Colors.white70, fontSize: 14)),
+                        ],
+                      ),
+
+                    const SizedBox(height: 16),
 
                     // Submit
                     SizedBox(
@@ -375,6 +488,7 @@ class _LoginPageState extends State<LoginPage> {
                       height: 50,
                       child: ElevatedButton(
                         onPressed: isLoading ? null : _submit,
+
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
                           shape: RoundedRectangleBorder(
@@ -394,6 +508,17 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                       ),
                     ),
+
+                    // 忘記密碼
+                    if (isLoginMode)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _showForgotPasswordDialog,
+                          child: const Text('忘記密碼？',
+                              style: TextStyle(color: Colors.orange)),
+                        ),
+                      ),
                   ],
                 ),
               ),

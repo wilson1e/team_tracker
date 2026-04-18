@@ -17,17 +17,11 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for android - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return android;
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
@@ -52,6 +46,16 @@ class DefaultFirebaseOptions {
     }
   }
 
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyDhll9SYo76AGa0uVdV4Sn2aXXBAjBfGF4',
+    appId: '1:955892392641:web:5f1f566eb8ec39a4d5aa40',
+    messagingSenderId: '955892392641',
+    projectId: 'team-tracker-7e8a9',
+    storageBucket: 'team-tracker-7e8a9.firebasestorage.app',
+    authDomain: 'team-tracker-7e8a9.firebaseapp.com',
+    measurementId: 'G-06LC55EPZE',
+  );
+
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyAXn8r6yNeVI1RnJitS3-621rkoj2JUhzY',
     appId: '1:955892392641:ios:b9fb40cf0f00e1b4d5aa40',
@@ -59,5 +63,13 @@ class DefaultFirebaseOptions {
     projectId: 'team-tracker-7e8a9',
     storageBucket: 'team-tracker-7e8a9.firebasestorage.app',
     iosBundleId: 'com.basketball.team.tracker',
+  );
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyDUvVn_Fuwif7HtmN6mkJqKF2jNb3ZSEIw',
+    appId: '1:955892392641:android:63eb51f73b67c9dfd5aa40',
+    messagingSenderId: '955892392641',
+    projectId: 'team-tracker-7e8a9',
+    storageBucket: 'team-tracker-7e8a9.firebasestorage.app',
   );
 }

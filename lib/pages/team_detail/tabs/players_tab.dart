@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../services/data/player_service.dart';
-import '../../player_attendance_page.dart';
+import '../../player_profile_page.dart';
 
 /// 球員管理 Tab
 /// 從 team_detail_page.dart 拆分出來
@@ -13,6 +13,8 @@ class PlayersTab extends StatefulWidget {
   final ValueChanged<List<Map<String, dynamic>>>? onPlayersChanged;
   final List<Map<String, dynamic>> matches;
   final List<Map<String, dynamic>> training;
+  final List<Map<String, dynamic>> allTeams;
+  final String? currentUserUid;
 
   const PlayersTab({
     super.key,
@@ -24,6 +26,8 @@ class PlayersTab extends StatefulWidget {
     this.onPlayersChanged,
     this.matches = const [],
     this.training = const [],
+    this.allTeams = const [],
+    this.currentUserUid,
   });
 
   @override
@@ -131,6 +135,179 @@ class _PlayersTabState extends State<PlayersTab> {
     }
   }
 
+  void _editPlayer(int index) {
+    final player = _players[index];
+    final nameCtrl = TextEditingController(text: player['name'] as String? ?? '');
+    final numberCtrl = TextEditingController(text: '${player['number'] ?? 0}');
+    final heightCtrl = TextEditingController(text: '${player['height'] ?? 0}');
+    final weightCtrl = TextEditingController(text: '${player['weight'] ?? 0}');
+    final currentPos = (player['position'] as String? ?? '-');
+    List<String> selectedPositions = currentPos == '-'
+        ? []
+        : currentPos.split('/').where((p) => p.isNotEmpty).toList();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A2E),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('編輯球員',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameCtrl,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDeco('名稱'),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(child: TextField(
+                          controller: numberCtrl,
+                          style: const TextStyle(color: Colors.white),
+                          keyboardType: TextInputType.number,
+                          decoration: _inputDeco('號碼'),
+                        )),
+                        const SizedBox(width: 8),
+                        Expanded(child: TextField(
+                          controller: heightCtrl,
+                          style: const TextStyle(color: Colors.white),
+                          keyboardType: TextInputType.number,
+                          decoration: _inputDeco('身高 cm'),
+                        )),
+                        const SizedBox(width: 8),
+                        Expanded(child: TextField(
+                          controller: weightCtrl,
+                          style: const TextStyle(color: Colors.white),
+                          keyboardType: TextInputType.number,
+                          decoration: _inputDeco('體重 kg'),
+                        )),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      children: _positions.map((pos) => ChoiceChip(
+                        label: Text(pos),
+                        selected: selectedPositions.contains(pos),
+                        selectedColor: Colors.orange,
+                        onSelected: (s) => setDialogState(() {
+                          if (s) {
+                            selectedPositions.add(pos);
+                          } else {
+                            selectedPositions.remove(pos);
+                          }
+                        }),
+                      )).toList(),
+                    ),
+                  ],
+              ),
+            ),
+          ),
+          actions: [
+            Row(
+              children: [
+                TextButton.icon(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                  label: const Text('刪除球員', style: TextStyle(color: Colors.red)),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _confirmDeletePlayer(index);
+                  },
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('取消', style: TextStyle(color: Colors.white54)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    final name = nameCtrl.text.trim();
+                    if (name.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('請輸入球員名稱'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    final number = int.tryParse(numberCtrl.text) ?? 0;
+                    if (number < 0 || number > 99) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('球衣號碼必須在 0-99 之間'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    setState(() {
+                      _players[index] = {
+                        'name': name,
+                        'number': number,
+                        'position': selectedPositions.isEmpty ? '-' : selectedPositions.join('/'),
+                        'height': int.tryParse(heightCtrl.text) ?? 0,
+                        'weight': int.tryParse(weightCtrl.text) ?? 0,
+                      };
+                    });
+                    _savePlayers();
+                    Navigator.pop(ctx);
+                    _showMessage('球員資料已更新');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('儲存'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeletePlayer(int index) {
+    final name = _players[index]['name'] ?? '此球員';
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('刪除球員', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text('確定要刪除「$name」？\n此操作不可撤銷。',
+            style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() => _players.removeAt(index));
+              _savePlayers();
+              Navigator.pop(ctx);
+              _showMessage('$name 已刪除');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('刪除'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final canEdit = !widget.isJoined || widget.userRole == 'editor';
@@ -146,7 +323,7 @@ class _PlayersTabState extends State<PlayersTab> {
             _buildEmptyState()
           else
             ..._players.asMap().entries.map((entry) =>
-              _buildPlayerCard(entry.key, entry.value)
+              _buildPlayerCard(entry.key, entry.value, canEdit: canEdit)
             ),
         ],
       ),
@@ -240,9 +417,24 @@ class _PlayersTabState extends State<PlayersTab> {
     );
   }
 
-  Widget _buildPlayerCard(int index, Map<String, dynamic> player) {
+  Widget _buildPlayerCard(int index, Map<String, dynamic> player, {bool canEdit = false}) {
     final pos = (player['position'] ?? '-') as String;
     final posColor = _positionColor(pos);
+
+    final positionBadges = pos != '-' ? Wrap(
+      spacing: 4,
+      children: pos.split('/').map((p) {
+        final c = _positionColor(p);
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: c.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(p, style: TextStyle(color: c, fontWeight: FontWeight.bold)),
+        );
+      }).toList(),
+    ) : null;
 
     return Card(
       color: const Color(0xFF1A1A2E),
@@ -267,27 +459,31 @@ class _PlayersTabState extends State<PlayersTab> {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => PlayerAttendancePage(
+            builder: (_) => PlayerProfilePage(
               playerName: player['name'],
-              matches: widget.matches,
-              training: widget.training,
+              playerData: player,
+              currentTeamName: widget.teamName,
+              allTeams: widget.allTeams,
+              currentUserUid: widget.currentUserUid,
             ),
           ),
         ),
-        trailing: pos != '-' ? Wrap(
-          spacing: 4,
-          children: pos.split('/').map((p) {
-            final c = _positionColor(p);
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: c.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(p, style: TextStyle(color: c, fontWeight: FontWeight.bold)),
-            );
-          }).toList(),
-        ) : null,
+        trailing: canEdit
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (positionBadges != null) positionBadges,
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, color: Colors.orange, size: 20),
+                    tooltip: '編輯球員',
+                    onPressed: () => _editPlayer(index),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              )
+            : positionBadges,
       ),
     );
   }

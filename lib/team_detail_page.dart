@@ -1,20 +1,28 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'notification_service.dart';
-import 'team_settings_page.dart';
 import 'team_members_page.dart';
 import 'calendar_service.dart';
 import 'pages/team_detail/tabs/players_tab.dart';
 import 'services/export/export_service.dart';
 import 'pages/photo_gallery_page.dart';
+import 'pages/training_drill_page.dart';
+import 'pages/penalty_wheel_page.dart';
+import 'pages/admin_panel_page.dart';
+import 'services/user_plan_service.dart';
+import 'widgets/pickers/venue_picker.dart';
 
 // ── Color serialization helpers ───────────────────────────────────
-int _colorToInt(Color? c) => c?.value ?? 0;
-Color? _intToColor(int? v) => (v == null || v == 0) ? null : Color(v);
+int _colorToInt(Color? c) => c?.toARGB32() ?? 0;
+Color? _intToColor(dynamic v) {
+  if (v == null) return null;
+  if (v is Color) return v;
+  if (v is int) return v == 0 ? null : Color(v);
+  return null;
+}
 
 class TeamDetailPage extends StatefulWidget {
   final String teamName;
@@ -25,6 +33,7 @@ class TeamDetailPage extends StatefulWidget {
   final String? userRole;
   final String? ownerUid;
   final bool isJoined;
+  final List<Map<String, dynamic>> allTeams;
 
   const TeamDetailPage({
     super.key,
@@ -36,6 +45,7 @@ class TeamDetailPage extends StatefulWidget {
     this.userRole,
     this.ownerUid,
     this.isJoined = false,
+    this.allTeams = const [],
   });
 
   @override
@@ -50,6 +60,8 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
   final _weightCtrl = TextEditingController();
   List<String> _selectedPositions = [];
   List<Map<String, dynamic>> _players = [];
+  int _maxPlayers = 25;
+  bool _drillCustom = false;
 
   // ── Match form ────────────────────────────────────────────────
   List<Map<String, dynamic>> _matches = [];
@@ -115,6 +127,12 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
     'NTBC',
     'Bros League hk',
     'Goat League HK',
+    'Hotblood basketball league',
+    '驍籃 Humble 低調高手',
+    '首都 Capital',
+    'Proud League',
+    'DW basketball league',
+    'SwingMan basketball league',
     'Friendly',
     '其他 Other',
   ];
@@ -177,6 +195,17 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
   // ============================================================
 
   Future<void> _loadData() async {
+    // 讀取訂閱限制
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      final limits = await UserPlanService.fetchLimits(uid);
+      if (mounted) {
+        setState(() {
+          _maxPlayers = limits['maxPlayers'] as int;
+          _drillCustom = limits['drillCustom'] as bool;
+        });
+      }
+    }
     // Load from cloud only
     await _loadFromCloud();
   }
@@ -220,7 +249,8 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
         if (data != null && data.isNotEmpty) {
           final cloudMatches = data.map((e) {
             final m = Map<String, dynamic>.from(e);
-            m['jerseyColor'] = _intToColor(m['jerseyColor'] as int?);
+            final jc = m['jerseyColor'];
+            m['jerseyColor'] = jc is Color ? jc : (jc is int ? _intToColor(jc) : null);
             // FIX: attendance from Firestore comes as Map<String,dynamic>, not Map<String,bool>
             m['attendance'] = _deserializeAttendance(m['attendance']);
             return m;
@@ -260,7 +290,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
     final prefs = await SharedPreferences.getInstance();
     final serializable = _matches.map((m) {
       final copy = Map<String, dynamic>.from(m);
-      copy['jerseyColor'] = _colorToInt(m['jerseyColor'] as Color?);
+      copy['jerseyColor'] = _colorToInt(m['jerseyColor'] is Color ? m['jerseyColor'] as Color : null);
       return copy;
     }).toList();
     await prefs.setString(_matchesKey, jsonEncode(serializable));
@@ -307,7 +337,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
       if (ref == null) return;
       final serializable = _matches.map((m) {
         final copy = Map<String, dynamic>.from(m);
-        copy['jerseyColor'] = _colorToInt(m['jerseyColor'] as Color?);
+        copy['jerseyColor'] = _colorToInt(m['jerseyColor'] is Color ? m['jerseyColor'] as Color : null);
         return copy;
       }).toList();
       if (!widget.isJoined) {
@@ -348,9 +378,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
   }
 
   Future<void> _saveTraining() async {
-    if (!widget.isJoined) {
-      await _syncTrainingToCloud();
-    }
+    await _syncTrainingToCloud();
   }
 
   Future<void> _syncTrainingToCloud() async {
@@ -403,54 +431,11 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
     required TextEditingController venueCtrl,
     required void Function(String?) onChanged,
   }) {
-    final allVenues = _venuesByDistrict.values.expand((v) => v).toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        DropdownButtonFormField<String>(
-          value: allVenues.contains(selectedVenue) ? selectedVenue : null,
-          decoration: _inputDeco('選擇場地'),
-          dropdownColor: const Color(0xFF1A1A2E),
-          items: _venuesByDistrict.entries.expand((entry) {
-            return [
-              DropdownMenuItem<String>(
-                enabled: false,
-                value: '___${entry.key}',
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 4),
-                  child: Text(entry.key, style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13)),
-                ),
-              ),
-              ...entry.value.map((v) => DropdownMenuItem(
-                value: v,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 16),
-                  child: Text(v, style: const TextStyle(color: Colors.white)),
-                ),
-              )),
-            ];
-          }).toList(),
-          onChanged: (v) {
-            venueCtrl.clear();
-            onChanged(v);
-          },
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: venueCtrl,
-          style: const TextStyle(color: Colors.white),
-          decoration: _inputDeco('或手動輸入場地').copyWith(
-            prefixIcon: const Icon(Icons.edit_location_alt, color: Colors.orange),
-          ),
-          onChanged: (v) {
-            if (v.isNotEmpty) {
-              onChanged(v);
-            } else {
-              onChanged(null);
-            }
-          },
-        ),
-      ],
+    return VenuePicker(
+      selectedVenue: selectedVenue,
+      venueController: venueCtrl,
+      onChanged: onChanged,
+      venuesByDistrict: _venuesByDistrict,
     );
   }
 
@@ -460,6 +445,30 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
       content:         Text(msg),
       backgroundColor: isError ? Colors.red : null,
     ));
+  }
+
+  void _showComingSoonDialog(String feature) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.lock_outline, color: Colors.orange),
+          SizedBox(width: 8),
+          Text('功能即將開放', style: TextStyle(color: Colors.white, fontSize: 16)),
+        ]),
+        content: Text('$feature 功能將會在日後開放，敬請期待！',
+            style: const TextStyle(color: Colors.white70)),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _exportReport() async {
@@ -558,6 +567,12 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
       'NTBC': 'NTBC',
       'Bros League hk': 'BROS',
       'Goat League HK': 'GLHK',
+      'Hotblood basketball league': 'HBB',
+      '驍籃 Humble 低調高手': 'HMB',
+      '首都 Capital': 'CAP',
+      'Proud League': 'PRD',
+      'DW basketball league': 'DWB',
+      'SwingMan basketball league': 'SWG',
       'Friendly': 'FRD',
       '其他 Other': 'OTH',
     };
@@ -648,6 +663,27 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
   void _addPlayer() {
     if (_nameCtrl.text.isEmpty) {
       _showMessage('請輸入球員名稱', isError: true);
+      return;
+    }
+
+    if (_players.length >= _maxPlayers) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A2E),
+          title: const Text('球員上限', style: TextStyle(color: Colors.white)),
+          content: Text(
+            '您目前最多可新增 $_maxPlayers 名球員。\n如需更多配額，請升級訂閱。',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('知道了', style: TextStyle(color: Colors.orange)),
+            ),
+          ],
+        ),
+      );
       return;
     }
 
@@ -767,7 +803,9 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
           backgroundColor: const Color(0xFF1A1A2E),
           title: const Text('編輯球員',
               style: TextStyle(color: Colors.white)),
-          content: SingleChildScrollView(
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(
                   controller: nameCtrl,
@@ -810,6 +848,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                     .toList(),
               ),
             ]),
+            ),
           ),
           actions: [
             TextButton(
@@ -860,7 +899,31 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
     if (t != null && mounted) setState(() => _selectedTime = t);
   }
 
+  static const _adminUid = 'oVRpJs75q3erE4XZeI7oHl0dtVs1';
+
   void _addMatch() {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    final isAdmin = currentUid == _adminUid;
+    if (!isAdmin && _matches.length >= 5) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A2E),
+          title: const Text('測試版限制', style: TextStyle(color: Colors.white)),
+          content: const Text(
+            '測試版最多支援 5 場比賽。\n正式版將開放更多功能。',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('知道了', style: TextStyle(color: Colors.orange)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     if (_opponentCtrl.text.isEmpty) {
       _showMessage('請輸入對手名稱', isError: true);
       return;
@@ -999,50 +1062,11 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                 )),
               ]),
               const SizedBox(height: 8),
-              // 場地：下拉 + 手動輸入
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  DropdownButtonFormField<String>(
-                    value: editVenue,
-                    decoration: _inputDeco('選擇場地'),
-                    dropdownColor: const Color(0xFF1A1A2E),
-                    items: _venuesByDistrict.entries.expand((entry) {
-                      return [
-                        DropdownMenuItem<String>(
-                          enabled: false,
-                          value: '___${entry.key}',
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 8, bottom: 4),
-                            child: Text(entry.key, style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13)),
-                          ),
-                        ),
-                        ...entry.value.map((v) => DropdownMenuItem(
-                          value: v,
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 16),
-                            child: Text(v, style: const TextStyle(color: Colors.white)),
-                          ),
-                        )),
-                      ];
-                    }).toList(),
-                    onChanged: (v) {
-                      editVenueCtrl.clear();
-                      setDS(() => editVenue = v);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: editVenueCtrl,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDeco('或手動輸入場地').copyWith(
-                      prefixIcon: const Icon(Icons.edit_location_alt, color: Colors.orange),
-                    ),
-                    onChanged: (v) {
-                      if (v.isNotEmpty) setDS(() => editVenue = null);
-                    },
-                  ),
-                ],
+              VenuePicker(
+                selectedVenue: editVenue,
+                venueController: editVenueCtrl,
+                onChanged: (v) => setDS(() => editVenue = v),
+                venuesByDistrict: _venuesByDistrict,
               ),
               const SizedBox(height: 8),
               Row(children: [
@@ -1069,11 +1093,11 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                     DropdownMenuItem(
                         value: true,
                         child:
-                            Text('主場', style: TextStyle(color: Colors.white))),
+                            Text('主隊', style: TextStyle(color: Colors.white))),
                     DropdownMenuItem(
                         value: false,
                         child:
-                            Text('作客', style: TextStyle(color: Colors.white))),
+                            Text('客隊', style: TextStyle(color: Colors.white))),
                   ],
                   onChanged: (v) => setDS(() => editIsHome = v ?? true),
                 )),
@@ -1196,6 +1220,20 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
   }
 
   void _addTraining() {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    final isAdmin = currentUid == _adminUid;
+    if (!isAdmin && _training.length >= 10) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A2E),
+          title: const Text('測試版限制', style: TextStyle(color: Colors.white)),
+          content: const Text('測試版暫時只支援 10 次訓練。\n正式版將開放更多功能。', style: TextStyle(color: Colors.white70)),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('知道了', style: TextStyle(color: Colors.orange)))],
+        ),
+      );
+      return;
+    }
     if (_trainingTitleCtrl.text.isEmpty) {
       _showMessage('請輸入訓練主題', isError: true);
       return;
@@ -1218,6 +1256,183 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
     _trainingTitleCtrl.clear();
     _trainingNotesCtrl.clear();
     _showMessage('訓練已新增');
+  }
+
+  List<DateTime> _getDatesInMonth(int year, int month, int weekday) {
+    final dates = <DateTime>[];
+    var d = DateTime(year, month, 1);
+    while (d.month == month) {
+      if (d.weekday == weekday) dates.add(d);
+      d = d.add(const Duration(days: 1));
+    }
+    return dates;
+  }
+
+  void _showRecurringTrainingDialog() {
+    final titleCtrl = TextEditingController(text: '日常練習');
+    final notesCtrl = TextEditingController();
+    final venueCtrl = TextEditingController();
+    int selectedWeekday = DateTime.monday;
+    TimeOfDay selectedTime = const TimeOfDay(hour: 19, minute: 0);
+    String? selectedVenue;
+    DateTime selectedMonth = DateTime(DateTime.now().year, DateTime.now().month);
+    final weekdayLabels = ['一', '二', '三', '四', '五', '六', '日'];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) {
+          final dates = _getDatesInMonth(
+              selectedMonth.year, selectedMonth.month, selectedWeekday);
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1A1A2E),
+            title: const Text('新增日常練習', style: TextStyle(color: Colors.white)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: titleCtrl,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: _inputDeco('訓練主題'),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('星期幾', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    children: List.generate(7, (i) {
+                      final wd = i + 1;
+                      return ChoiceChip(
+                        label: Text(weekdayLabels[i]),
+                        selected: selectedWeekday == wd,
+                        selectedColor: Colors.orange,
+                        backgroundColor: Colors.white12,
+                        labelStyle: TextStyle(
+                          color: selectedWeekday == wd ? Colors.black : Colors.white,
+                        ),
+                        onSelected: (_) => setDlgState(() => selectedWeekday = wd),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('月份', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left, color: Colors.white70),
+                        onPressed: () => setDlgState(() {
+                          selectedMonth = DateTime(selectedMonth.year, selectedMonth.month - 1);
+                        }),
+                      ),
+                      Expanded(
+                        child: Text(
+                          '${selectedMonth.year} 年 ${selectedMonth.month} 月（共 ${dates.length} 次）',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right, color: Colors.white70),
+                        onPressed: () => setDlgState(() {
+                          selectedMonth = DateTime(selectedMonth.year, selectedMonth.month + 1);
+                        }),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final t = await showTimePicker(context: ctx, initialTime: selectedTime);
+                      if (t != null) setDlgState(() => selectedTime = t);
+                    },
+                    icon: const Icon(Icons.access_time),
+                    label: Text(_fmtTime(selectedTime)),
+                  ),
+                  const SizedBox(height: 12),
+                  VenuePicker(
+                    selectedVenue: selectedVenue,
+                    venueController: venueCtrl,
+                    onChanged: (v) => setDlgState(() => selectedVenue = v),
+                    venuesByDistrict: _venuesByDistrict,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notesCtrl,
+                    style: const TextStyle(color: Colors.white),
+                    maxLines: 2,
+                    decoration: _inputDeco('備註（選填）'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('取消', style: TextStyle(color: Colors.white54)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                onPressed: dates.isEmpty
+                    ? null
+                    : () {
+                        final t = titleCtrl.text.trim();
+                        final v = selectedVenue ?? (venueCtrl.text.trim().isNotEmpty ? venueCtrl.text.trim() : 'TBD');
+                        final n = notesCtrl.text.trim();
+                        Navigator.pop(ctx);
+                        titleCtrl.dispose();
+                        notesCtrl.dispose();
+                        venueCtrl.dispose();
+                        _addRecurringTrainings(
+                          title: t.isEmpty ? '日常練習' : t,
+                          dates: dates,
+                          time: selectedTime,
+                          venue: v,
+                          notes: n,
+                        );
+                      },
+                child: Text('新增 ${dates.length} 次', style: const TextStyle(color: Colors.black)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _addRecurringTrainings({
+    required String title,
+    required List<DateTime> dates,
+    required TimeOfDay time,
+    required String venue,
+    required String notes,
+  }) {
+    final attendance = <String, bool>{
+      for (final p in _players) p['name'] as String: false
+    };
+    int added = 0;
+    setState(() {
+      for (final date in dates) {
+        final dateStr = _fmtDate(date);
+        final exists = _training.any((t) => t['date'] == dateStr && t['title'] == title);
+        if (!exists) {
+          _training.add({
+            'title': title,
+            'date': dateStr,
+            'time': _fmtTime(time),
+            'venue': venue,
+            'notes': notes,
+            'attendance': Map<String, bool>.from(attendance),
+          });
+          added++;
+        }
+      }
+      _training.sort((a, b) => b['date'].compareTo(a['date']));
+    });
+    _saveTraining();
+    _showMessage('已新增 $added 次日常練習');
   }
 
   Future<void> _deleteTraining(int index) async {
@@ -1288,50 +1503,11 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                 )),
               ]),
               const SizedBox(height: 8),
-              // 場地：下拉 + 手動輸入
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  DropdownButtonFormField<String>(
-                    value: editVenue,
-                    decoration: _inputDeco('選擇場地'),
-                    dropdownColor: const Color(0xFF1A1A2E),
-                    items: _venuesByDistrict.entries.expand((entry) {
-                      return [
-                        DropdownMenuItem<String>(
-                          enabled: false,
-                          value: '___${entry.key}',
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 8, bottom: 4),
-                            child: Text(entry.key, style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13)),
-                          ),
-                        ),
-                        ...entry.value.map((v) => DropdownMenuItem(
-                          value: v,
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 16),
-                            child: Text(v, style: const TextStyle(color: Colors.white)),
-                          ),
-                        )),
-                      ];
-                    }).toList(),
-                    onChanged: (v) {
-                      editTrainingVenueCtrl.clear();
-                      setDS(() => editVenue = v);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: editTrainingVenueCtrl,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDeco('或手動輸入場地').copyWith(
-                      prefixIcon: const Icon(Icons.edit_location_alt, color: Colors.orange),
-                    ),
-                    onChanged: (v) {
-                      if (v.isNotEmpty) setDS(() => editVenue = null);
-                    },
-                  ),
-                ],
+              VenuePicker(
+                selectedVenue: editVenue,
+                venueController: editTrainingVenueCtrl,
+                onChanged: (v) => setDS(() => editVenue = v),
+                venuesByDistrict: _venuesByDistrict,
               ),
               const SizedBox(height: 8),
               TextField(
@@ -1372,6 +1548,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                     (editTrainingVenueCtrl.text.trim().isNotEmpty ? editTrainingVenueCtrl.text.trim() : 'TBD');
                 setState(() {
                   _training[index] = {
+                    ..._training[index], // preserve drill_items and other fields
                     'title':      titleCtrl.text.trim(),
                     'date':       _fmtDate(editDate),
                     'time':       _fmtTime(editTime),
@@ -1629,22 +1806,29 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                     onChanged: (v) => setState(() => _selectedVenue = v),
                   ),
                   const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value:         _selectedLeague,
+                    decoration:    _inputDeco('聯賽'),
+                    dropdownColor: const Color(0xFF1A1A2E),
+                    items:         _leagues
+                        .map((l) => DropdownMenuItem(
+                            value: l,
+                            child: Text(l,
+                                style: const TextStyle(
+                                    color: Colors.white))))
+                        .toList(),
+                    onChanged: (v) =>
+                        setState(() => _selectedLeague = v ?? 'Happy Basketball League'),
+                  ),
+                  const SizedBox(height: 8),
                   Row(children: [
                     Expanded(
-                        child: DropdownButtonFormField<String>(
-                      value:         _selectedLeague,
-                      decoration:    _inputDeco('聯賽'),
-                      dropdownColor: const Color(0xFF1A1A2E),
-                      items:         _leagues
-                          .map((l) => DropdownMenuItem(
-                              value: l,
-                              child: Text(l,
-                                  style: const TextStyle(
-                                      color: Colors.white))))
-                          .toList(),
-                      onChanged: (v) =>
-                          setState(() => _selectedLeague = v ?? 'Happy Basketball League'),
-                    )),
+                      flex: 2,
+                      child: TextField(
+                          controller: _opponentCtrl,
+                          style:       const TextStyle(color: Colors.white),
+                          decoration:  _inputDeco('對手')),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                         child: DropdownButtonFormField<bool>(
@@ -1655,7 +1839,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                         DropdownMenuItem(
                             value: true,
                             child: Row(children: [
-                              const Text('主場', style: TextStyle(color: Colors.white)),
+                              const Text('主隊', style: TextStyle(color: Colors.white)),
                               if (widget.homeJerseyColor != null) ...[
                                 const SizedBox(width: 8),
                                 Container(
@@ -1671,7 +1855,7 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                         DropdownMenuItem(
                             value: false,
                             child: Row(children: [
-                              const Text('作客', style: TextStyle(color: Colors.white)),
+                              const Text('客隊', style: TextStyle(color: Colors.white)),
                               if (widget.awayJerseyColor != null) ...[
                                 const SizedBox(width: 8),
                                 Container(
@@ -1695,11 +1879,6 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                       }),
                     )),
                   ]),
-                  const SizedBox(height: 8),
-                  TextField(
-                      controller: _opponentCtrl,
-                      style:       const TextStyle(color: Colors.white),
-                      decoration:  _inputDeco('對手')),
                   const SizedBox(height: 8),
                   TextField(
                       controller: _matchNotesCtrl,
@@ -1740,31 +1919,58 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
               ),
               child: ListTile(
                 leading: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircleAvatar(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircleAvatar(
                         backgroundColor: accent,
                         radius:          20,
                         child:           Text(_getLeagueAbbr(m['league']),
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
-                                fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(isHome ? '主場' : '作客',
-                          style: TextStyle(
-                              color: accent,
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold)),
-                    ]),
-                title: Row(children: [
-                  Expanded(
-                      child: Text('vs ${m['opponent']}',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600))),
-                ]),
+                                fontWeight: FontWeight.bold))),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(isHome ? '主隊' : '客隊',
+                              style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.bold)),
+                        ),
+                        if (m['jerseyColor'] != null) ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            width: 10, height: 10,
+                            decoration: BoxDecoration(
+                              color: m['jerseyColor'] is Color
+                                  ? m['jerseyColor'] as Color
+                                  : Color(m['jerseyColor'] as int),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white24, width: 1),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(m['league'] ?? '',
+                        style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                    const SizedBox(height: 4),
+                    Text('vs ${m['opponent']}',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1918,6 +2124,19 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                             backgroundColor: Colors.orange),
                         child: const Text('新增')),
                   ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _showRecurringTrainingDialog,
+                      icon: const Icon(Icons.repeat, color: Colors.orange),
+                      label: const Text('新增日常練習',
+                          style: TextStyle(color: Colors.orange)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.orange),
+                      ),
+                    ),
+                  ),
                 ]),
           ),
         ),
@@ -2058,6 +2277,49 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
                         ],
                       ),
                     ],
+                    // 訓練細項按鈕
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton.icon(
+                          icon: const Icon(Icons.list_alt, size: 14, color: Colors.orange),
+                          label: const Text('訓練細項',
+                              style: TextStyle(color: Colors.orange, fontSize: 12)),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () async {
+                            final isAdmin = FirebaseAuth.instance.currentUser?.uid == _adminUid;
+                            final updated =
+                                await Navigator.push<Map<String, dynamic>>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => TrainingDrillPage(
+                                  training: t,
+                                  players: _players,
+                                  canEdit: canEdit,
+                                  isAdmin: isAdmin,
+                                  canCustom: _drillCustom,
+                                  onChanged: (updated) {
+                                    if (mounted) {
+                                      setState(() => _training[index] = updated);
+                                      _saveTraining();
+                                    }
+                                  },
+                                ),
+                              ),
+                            );
+                            if (updated != null && mounted) {
+                              setState(() => _training[index] = updated);
+                              _saveTraining();
+                            }
+                          },
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -2076,104 +2338,145 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
       length: 3,
       child: Scaffold(
         backgroundColor: const Color(0xFF0F0F1E),
+        drawer: Drawer(
+          backgroundColor: const Color(0xFF1A1A2E),
+          child: SafeArea(
+            child: Column(
+              children: [
+                // 球隊名稱標頭
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                  decoration: const BoxDecoration(color: Color(0xFF0F0F1E)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.sports_basketball, color: Colors.orange, size: 40),
+                      const SizedBox(height: 12),
+                      Text(
+                        widget.teamName,
+                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // 照片相簿
+                ListTile(
+                  leading: const Icon(Icons.photo_library, color: Colors.orange),
+                  title: const Text('照片相簿', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PhotoGalleryPage(
+                          teamName: widget.teamName,
+                          inviteCode: widget.inviteCode,
+                          ownerUid: widget.ownerUid,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                // 匯出報表（owner only）
+                if (!widget.isJoined)
+                  ListTile(
+                    leading: const Icon(Icons.file_download, color: Colors.white70),
+                    title: const Text('匯出報表', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showComingSoonDialog('匯出報表');
+                    },
+                  ),
+                // 成員管理（owner only）
+                if (!widget.isJoined)
+                  ListTile(
+                    leading: const Icon(Icons.people, color: Colors.white70),
+                    title: const Text('成員管理', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (widget.ownerUid == null || widget.inviteCode == null) {
+                        _showMessage('無法載入球隊資料');
+                        return;
+                      }
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => TeamMembersPage(
+                            ownerUid: widget.ownerUid!,
+                            teamId: widget.inviteCode!,
+                            isOwner: true,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                // 懲罰抽獎
+                ListTile(
+                  leading: const Icon(Icons.casino, color: Colors.orange),
+                  title: const Text('懲罰抽獎', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => const PenaltyWheelPage(),
+                    ));
+                  },
+                ),
+                // 球隊戰術（即將開放）
+                ListTile(
+                  leading: const Icon(Icons.auto_graph, color: Colors.white70),
+                  title: const Text('球隊戰術', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showComingSoonDialog('球隊戰術');
+                  },
+                ),
+                // 球隊聯賽（即將開放）
+                ListTile(
+                  leading: const Icon(Icons.emoji_events, color: Colors.white70),
+                  title: const Text('球隊聯賽', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showComingSoonDialog('球隊聯賽');
+                  },
+                ),
+                // 重新同步
+                ListTile(
+                  leading: const Icon(Icons.cloud_sync, color: Colors.white70),
+                  title: const Text('重新同步', style: TextStyle(color: Colors.white)),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _loadFromCloud();
+                    _showMessage('雲端同步完成');
+                  },
+                ),
+                // Admin 管理（僅 admin 可見）
+                if (FirebaseAuth.instance.currentUser?.uid == _adminUid)
+                  ListTile(
+                    leading: const Icon(Icons.admin_panel_settings, color: Colors.red),
+                    title: const Text('Admin 管理', style: TextStyle(color: Colors.red)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => const AdminPanelPage(),
+                      ));
+                    },
+                  ),
+                const Spacer(),
+              ],
+            ),
+          ),
+        ),
         appBar: AppBar(
           title:           Text(widget.teamName),
           backgroundColor: const Color(0xFF1A1A2E),
           foregroundColor: Colors.white,
           actions: [
             IconButton(
-              icon: const Icon(Icons.photo_library),
-              tooltip: '照片相簿',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PhotoGalleryPage(
-                      teamName: widget.teamName,
-                      inviteCode: widget.inviteCode,
-                      ownerUid: widget.ownerUid,
-                    ),
-                  ),
-                );
-              },
-            ),
-            if (!widget.isJoined)
-              IconButton(
-                icon: const Icon(Icons.file_download),
-                tooltip: '匯出報表',
-                onPressed: () => showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: const Color(0xFF1A1A2E),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    title: const Row(children: [
-                      Icon(Icons.lock_outline, color: Colors.orange),
-                      SizedBox(width: 8),
-                      Text('功能即將開放', style: TextStyle(color: Colors.white, fontSize: 16)),
-                    ]),
-                    content: const Text(
-                      '匯出記錄功能將會在正式版開放，敬請期待！',
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                    actions: [
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                        child: const Text('知道了'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            if (!widget.isJoined)
-              IconButton(
-                icon: const Icon(Icons.people),
-                tooltip: '成員管理',
-                onPressed: () {
-                  if (widget.ownerUid == null || widget.inviteCode == null) {
-                    _showMessage('無法載入球隊資料');
-                    return;
-                  }
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => TeamMembersPage(
-                        ownerUid: widget.ownerUid!,
-                        teamId: widget.inviteCode!,
-                        isOwner: true,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            if (!widget.isJoined)
-              IconButton(
-                icon: const Icon(Icons.settings),
-                tooltip: '球隊設定',
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => TeamSettingsPage(
-                        teamName: widget.teamName,
-                        logoPath: widget.logoPath,
-                        homeJerseyColor: widget.homeJerseyColor,
-                        awayJerseyColor: widget.awayJerseyColor,
-                        onSave: (name, logo, home, away) {
-                          _showMessage('設定已保存，請返回球隊列表查看更新');
-                        },
-                      ),
-                    ),
-                  );
-                },
-              ),
-            IconButton(
-              icon:    const Icon(Icons.cloud_sync),
-              tooltip: '重新同步',
-              onPressed: () async {
-                await _loadFromCloud();
-                _showMessage('雲端同步完成');
-              },
+              icon: const Icon(Icons.close),
+              tooltip: '返回',
+              onPressed: () => Navigator.pop(context),
             ),
           ],
           bottom: TabBar(
@@ -2204,6 +2507,8 @@ class _TeamDetailPageState extends State<TeamDetailPage> {
               onPlayersChanged: (players) => setState(() => _players = players),
               matches: _matches,
               training: _training,
+              allTeams: widget.allTeams,
+              currentUserUid: FirebaseAuth.instance.currentUser?.uid,
             ),
             _buildMatchTab(),
             _buildTrainingTab(),

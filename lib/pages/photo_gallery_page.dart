@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/user_plan_service.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 /// 照片相簿頁面
@@ -26,6 +27,7 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
   final ImagePicker _picker = ImagePicker();
   List<Map<String, dynamic>> _photos = [];
   bool _isLoading = true;
+  int _maxPhotos = 50;
 
   @override
   void initState() {
@@ -41,6 +43,10 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
 
       final uid = widget.ownerUid ?? user.uid;
       final teamId = widget.inviteCode ?? widget.teamName;
+
+      // 讀取訂閱限制
+      final limits = await UserPlanService.fetchLimits(uid);
+      if (mounted) setState(() => _maxPhotos = limits['maxPhotos'] as int);
 
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
@@ -67,15 +73,14 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
   }
 
   Future<void> _pickImage() async {
-    // Beta limit: max 10 photos
-    if (_photos.length >= 10) {
+    if (_photos.length >= _maxPhotos) {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: const Color(0xFF1A1A2E),
-          title: const Text('測試版限制', style: TextStyle(color: Colors.white)),
-          content: const Text(
-            '測試版暫時只支援上傳 10 張照片。\n正式版將開放無限上傳。',
+          title: const Text('照片上限', style: TextStyle(color: Colors.white)),
+          content: Text(
+            '您目前最多可上傳 $_maxPhotos 張照片。\n如需更多配額，請升級訂閱。',
             style: TextStyle(color: Colors.white70),
           ),
           actions: [
@@ -171,7 +176,7 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
         onPressed: _pickImage,
         backgroundColor: Colors.orange,
         icon: const Icon(Icons.add_photo_alternate),
-        label: Text('上傳照片 (${_photos.length}/10)'),
+        label: Text('上傳照片 (${_photos.length}/$_maxPhotos)'),
       ),
     );
   }

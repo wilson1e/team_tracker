@@ -25,7 +25,7 @@ class AppConstants {
   static const List<String> leagues = ['HBL', 'SBL', 'TYL'];
 
   // Home/Away options
-  static const List<String> homeAwayOptions = ['主場', '客場'];
+  static const List<String> homeAwayOptions = ['主隊', '客隊'];
 
   // Time options
   static List<String> get timeOptions => 
