@@ -121,6 +121,26 @@ class NotificationService {
     );
   }
 
+  Future<void> showInstantTeamUpdateNotification({
+    required int id,
+    required String title,
+    required String body,
+  }) async {
+    if (!await isEnabled()) return;
+
+    const androidDetails = AndroidNotificationDetails(
+      'team_updates',
+      '球隊更新',
+      channelDescription: '提醒新加入的比賽或訓練',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+    const iosDetails = DarwinNotificationDetails();
+    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    await _notifications.show(id, title, body, details);
+  }
+
   DateTime _calculateNotificationTime(DateTime matchDate, String matchTime, String notifTime) {
     final timeParts = matchTime.split(':');
     final matchHour = int.tryParse(timeParts[0]) ?? 20;

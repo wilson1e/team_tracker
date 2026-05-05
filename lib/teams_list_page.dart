@@ -1,16 +1,19 @@
 import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'team_detail_page.dart';
 import 'login_page.dart';
 import 'settings_page.dart';
 import 'ad_service.dart';
 import 'platform_service.dart';
+import 'notification_service.dart';
 import 'services/changelog_service.dart';
 import 'services/user_plan_service.dart';
 import 'pages/subscription_page.dart';
@@ -19,7 +22,10 @@ import 'pages/subscription_page.dart';
 String generateInviteCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   final random = Random.secure();
-  return List.generate(6, (index) => chars[random.nextInt(chars.length)]).join();
+  return List.generate(
+    6,
+    (index) => chars[random.nextInt(chars.length)],
+  ).join();
 }
 
 class TeamsListPage extends StatefulWidget {
@@ -40,9 +46,18 @@ class TeamsListPage extends StatefulWidget {
 
 class _TeamsListPageState extends State<TeamsListPage> {
   final List<Map<String, dynamic>> _teams = [];
+  final Map<String, StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>>
+  _joinedTeamMatchSubscriptions = {};
+  final Map<String, StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>>
+  _joinedTeamTrainingSubscriptions = {};
   bool _isLoading = true;
   final ImagePicker _picker = ImagePicker();
   dynamic _bannerAd; // BannerAd on native, null on web
+  int _teamCreateCap = 1;
+  int _teamAccessCap = 1;
+  bool _hasEverPaidSubscription = false;
+  bool _isRetentionOnly = false;
+  bool _isTrialActive = false;
 
   // ── Lifecycle ──────────────────────────────────────────────────
 
@@ -62,6 +77,12 @@ class _TeamsListPageState extends State<TeamsListPage> {
 
   @override
   void dispose() {
+    for (final sub in _joinedTeamMatchSubscriptions.values) {
+      sub.cancel();
+    }
+    for (final sub in _joinedTeamTrainingSubscriptions.values) {
+      sub.cancel();
+    }
     _bannerAd?.dispose();
     super.dispose();
   }
@@ -77,6 +98,14 @@ class _TeamsListPageState extends State<TeamsListPage> {
         setState(() => _isLoading = false);
         return;
       }
+      final limits = await UserPlanService.fetchLimits(user.uid);
+      _teamCreateCap = limits['createCap'] as int? ?? 1;
+      _teamAccessCap = limits['accessCap'] as int? ?? 1;
+      _hasEverPaidSubscription =
+          limits['hasEverPaidSubscription'] as bool? ?? false;
+      _isRetentionOnly = limits['isRetentionOnly'] as bool? ?? false;
+      _isTrialActive = limits['isTrialActive'] as bool? ?? false;
+
       final teamsDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -87,9 +116,12 @@ class _TeamsListPageState extends State<TeamsListPage> {
       if (teamsDoc.exists && teamsDoc.data() != null) {
         final data = teamsDoc.data()!['teams'] as List?;
         if (data != null) {
+          final loadedTeams = data
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
           setState(() {
             _teams.clear();
-            _teams.addAll(data.map((e) => Map<String, dynamic>.from(e)));
+            _teams.addAll(_applyTeamAccessLocks(loadedTeams));
           });
         }
       }
@@ -98,6 +130,7 @@ class _TeamsListPageState extends State<TeamsListPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+    await _setupJoinedTeamUpdateListeners();
     if (mounted) _registerExistingInviteCodes();
   }
 
@@ -108,15 +141,20 @@ class _TeamsListPageState extends State<TeamsListPage> {
     try {
       for (int i = 0; i < _teams.length; i++) {
         final team = _teams[i];
-        if (team['isJoined'] == true || team['codeRegistered'] == true) continue;
+        if (team['isJoined'] == true || team['codeRegistered'] == true) {
+          continue;
+        }
         final code = team['inviteCode'] as String?;
         if (code == null) continue;
-        await FirebaseFirestore.instance.collection('inviteCodes').doc(code).set({
-          'ownerUid':  user.uid,
-          'teamName':  team['name'] as String,
-          'ownerName': widget.currentUserName,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        await FirebaseFirestore.instance
+            .collection('inviteCodes')
+            .doc(code)
+            .set({
+              'ownerUid': user.uid,
+              'teamName': team['name'] as String,
+              'ownerName': widget.currentUserName,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
         _teams[i] = Map<String, dynamic>.from(team)..['codeRegistered'] = true;
         needsSave = true;
       }
@@ -139,38 +177,265 @@ class _TeamsListPageState extends State<TeamsListPage> {
           .collection('myTeams')
           .doc('teamsList')
           .set({
-        'teams':     _teams,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'teams': _teams.map((team) {
+              final copy = Map<String, dynamic>.from(team);
+              copy.remove('locked');
+              return copy;
+            }).toList(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
     } catch (e) {
       debugPrint('Save teams error: $e');
     }
   }
 
+  Future<void> _setupJoinedTeamUpdateListeners() async {
+    if (defaultTargetPlatform != TargetPlatform.iOS) {
+      for (final sub in _joinedTeamMatchSubscriptions.values) {
+        await sub.cancel();
+      }
+      for (final sub in _joinedTeamTrainingSubscriptions.values) {
+        await sub.cancel();
+      }
+      _joinedTeamMatchSubscriptions.clear();
+      _joinedTeamTrainingSubscriptions.clear();
+      return;
+    }
+
+    final notificationService = NotificationService();
+    await notificationService.initialize();
+
+    final joinedTeams = _teams.where((t) => t['isJoined'] == true).toList();
+    final activeKeys = <String>{};
+
+    for (final team in joinedTeams) {
+      final ownerUid = team['ownerUid'] as String?;
+      final inviteCode = team['inviteCode'] as String?;
+      final teamName = (team['name'] as String?) ?? '球隊';
+      if (ownerUid == null || inviteCode == null) continue;
+
+      final teamKey = '$ownerUid::$inviteCode';
+      activeKeys.add(teamKey);
+
+      _joinedTeamMatchSubscriptions.putIfAbsent(teamKey, () {
+        return FirebaseFirestore.instance
+            .collection('users')
+            .doc(ownerUid)
+            .collection('teams')
+            .doc(inviteCode)
+            .collection('matches')
+            .doc('data')
+            .snapshots()
+            .listen((doc) {
+              _handleJoinedTeamEventUpdate(
+                teamKey: teamKey,
+                doc: doc,
+                listField: 'matches',
+                type: 'match',
+                teamName: teamName,
+              );
+            });
+      });
+
+      _joinedTeamTrainingSubscriptions.putIfAbsent(teamKey, () {
+        return FirebaseFirestore.instance
+            .collection('users')
+            .doc(ownerUid)
+            .collection('teams')
+            .doc(inviteCode)
+            .collection('training')
+            .doc('data')
+            .snapshots()
+            .listen((doc) {
+              _handleJoinedTeamEventUpdate(
+                teamKey: teamKey,
+                doc: doc,
+                listField: 'training',
+                type: 'training',
+                teamName: teamName,
+              );
+            });
+      });
+    }
+
+    final staleMatchKeys = _joinedTeamMatchSubscriptions.keys
+        .where((key) => !activeKeys.contains(key))
+        .toList();
+    for (final key in staleMatchKeys) {
+      await _joinedTeamMatchSubscriptions.remove(key)?.cancel();
+    }
+
+    final staleTrainingKeys = _joinedTeamTrainingSubscriptions.keys
+        .where((key) => !activeKeys.contains(key))
+        .toList();
+    for (final key in staleTrainingKeys) {
+      await _joinedTeamTrainingSubscriptions.remove(key)?.cancel();
+    }
+  }
+
+  Future<void> _handleJoinedTeamEventUpdate({
+    required String teamKey,
+    required DocumentSnapshot<Map<String, dynamic>> doc,
+    required String listField,
+    required String type,
+    required String teamName,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final items =
+        (doc.data()?[listField] as List?)
+            ?.map((e) => Map<String, dynamic>.from(e))
+            .toList() ??
+        const <Map<String, dynamic>>[];
+
+    final countKey = 'joined_team_${type}_count_$teamKey';
+    final lastCount = prefs.getInt(countKey);
+    final currentCount = items.length;
+
+    if (lastCount == null) {
+      await prefs.setInt(countKey, currentCount);
+      return;
+    }
+
+    if (currentCount <= lastCount) {
+      await prefs.setInt(countKey, currentCount);
+      return;
+    }
+
+    final newItems = items.skip(lastCount).toList();
+    final notificationService = NotificationService();
+    await notificationService.initialize();
+
+    for (final item in newItems) {
+      if (type == 'match') {
+        final opponent = (item['opponent'] as String?) ?? '新對手';
+        final time = (item['time'] as String?) ?? '';
+        final venue = (item['location'] as String?) ?? '';
+        await notificationService.showInstantTeamUpdateNotification(
+          id: 'joined::$teamKey::match::$opponent::$time'.hashCode.abs(),
+          title: '🏀 $teamName 新增比賽',
+          body:
+              'vs $opponent${time.isNotEmpty ? "・$time" : ""}${venue.isNotEmpty ? "・$venue" : ""}',
+        );
+      } else {
+        final title = (item['title'] as String?) ?? '新訓練';
+        final time = (item['time'] as String?) ?? '';
+        final venue = (item['venue'] as String?) ?? '';
+        await notificationService.showInstantTeamUpdateNotification(
+          id: 'joined::$teamKey::training::$title::$time'.hashCode.abs(),
+          title: '💪 $teamName 新增訓練',
+          body:
+              '$title${time.isNotEmpty ? "・$time" : ""}${venue.isNotEmpty ? "・$venue" : ""}',
+        );
+      }
+    }
+
+    await prefs.setInt(countKey, currentCount);
+  }
+
   // ── Team CRUD ──────────────────────────────────────────────────
 
-  void _addTeam(String name, String? logoPath, String? homeJersey, String? awayJersey) {
+  List<Map<String, dynamic>> _applyTeamAccessLocks(
+    List<Map<String, dynamic>> source,
+  ) {
+    final ownedIndexes = <int>[];
+    for (int i = 0; i < source.length; i++) {
+      if (source[i]['isJoined'] != true) ownedIndexes.add(i);
+    }
+
+    for (int rank = 0; rank < ownedIndexes.length; rank++) {
+      final index = ownedIndexes[rank];
+      final locked = rank >= _teamAccessCap;
+      source[index] = Map<String, dynamic>.from(source[index])
+        ..['locked'] = locked;
+    }
+
+    return source;
+  }
+
+  int? _ownedTeamRankForIndex(int index) {
+    if (index < 0 ||
+        index >= _teams.length ||
+        _teams[index]['isJoined'] == true) {
+      return null;
+    }
+
+    int rank = 0;
+    for (int i = 0; i < _teams.length; i++) {
+      if (_teams[i]['isJoined'] == true) continue;
+      if (i == index) return rank;
+      rank++;
+    }
+    return null;
+  }
+
+  Future<void> _showLockedTeamDialog(String teamName) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        title: const Text('球隊已鎖定', style: TextStyle(color: Colors.white)),
+        content: Text(
+          _hasEverPaidSubscription
+              ? _isRetentionOnly
+                    ? '「$teamName」係你已保留嘅額外球隊。你而家可以保留，但未恢復訂閱前唔可以再新增超出目前建立上限嘅球隊。'
+                    : '「$teamName」目前超出可存取上限，請重新訂閱或調整球隊數量後再進入。'
+              : '「$teamName」屬於試用期建立的額外球隊。由於尚未成功付款，試用結束後此球隊已被鎖定。',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('知道了', style: TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SubscriptionPage()),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            child: Text(
+              _hasEverPaidSubscription ? '查看方案' : '立即升級',
+              style: const TextStyle(color: Colors.black),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addTeam(
+    String name,
+    String? logoPath,
+    String? homeJersey,
+    String? awayJersey,
+  ) {
     if (name.trim().isEmpty) return;
     if (name.contains('/') || name.contains('.')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('球隊名稱不能包含 / 或 . 字符')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('球隊名稱不能包含 / 或 . 字符')));
       return;
     }
     final code = generateInviteCode();
     final user = FirebaseAuth.instance.currentUser;
     setState(() {
       _teams.add({
-        'name':           name.trim(),
-        'logo':           logoPath,
-        'inviteCode':     code,
-        'homeJersey':     homeJersey,
-        'awayJersey':     awayJersey,
-        'ownerUid':       user?.uid,
-        'ownerName':      widget.currentUserName,
-        'isJoined':       false,
+        'name': name.trim(),
+        'logo': logoPath,
+        'inviteCode': code,
+        'homeJersey': homeJersey,
+        'awayJersey': awayJersey,
+        'ownerUid': user?.uid,
+        'ownerName': widget.currentUserName,
+        'isJoined': false,
         'codeRegistered': true,
+        'locked': false,
       });
+      _applyTeamAccessLocks(_teams);
     });
     _saveTeamsToCloud();
     _registerInviteCode(code, name.trim());
@@ -181,8 +446,8 @@ class _TeamsListPageState extends State<TeamsListPage> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
       await FirebaseFirestore.instance.collection('inviteCodes').doc(code).set({
-        'ownerUid':  user.uid,
-        'teamName':  teamName,
+        'ownerUid': user.uid,
+        'teamName': teamName,
         'ownerName': widget.currentUserName,
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -191,14 +456,19 @@ class _TeamsListPageState extends State<TeamsListPage> {
     }
   }
 
-  void _updateTeam(int index, String name, String? logoPath,
-      String? homeJersey, String? awayJersey) {
+  void _updateTeam(
+    int index,
+    String name,
+    String? logoPath,
+    String? homeJersey,
+    String? awayJersey,
+  ) {
     if (name.trim().isEmpty) return;
     setState(() {
       _teams[index] = {
         ..._teams[index],
-        'name':       name.trim(),
-        'logo':       logoPath,
+        'name': name.trim(),
+        'logo': logoPath,
         'homeJersey': homeJersey,
         'awayJersey': awayJersey,
       };
@@ -213,8 +483,10 @@ class _TeamsListPageState extends State<TeamsListPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A2E),
-        title: Text(isJoined ? '離開球隊?' : '刪除球隊?',
-            style: const TextStyle(color: Colors.white)),
+        title: Text(
+          isJoined ? '離開球隊?' : '刪除球隊?',
+          style: const TextStyle(color: Colors.white),
+        ),
         content: Text(
           isJoined
               ? '確定離開「${team['name']}」?'
@@ -223,8 +495,9 @@ class _TeamsListPageState extends State<TeamsListPage> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('取消')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -245,7 +518,14 @@ class _TeamsListPageState extends State<TeamsListPage> {
   // ── Jersey colour helpers ──────────────────────────────────────
 
   static const _jerseyColorNames = [
-    '紅色', '藍色', '綠色', '黃色', '白色', '黑色', '紫色', '橙色',
+    '紅色',
+    '藍色',
+    '綠色',
+    '黃色',
+    '白色',
+    '黑色',
+    '紫色',
+    '橙色',
   ];
 
   Color _getJerseyColor(String colorName) {
@@ -282,10 +562,10 @@ class _TeamsListPageState extends State<TeamsListPage> {
             return GestureDetector(
               onTap: () => onChanged(isSelected ? null : color),
               child: Container(
-                width:  40,
+                width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color:  _getJerseyColor(color),
+                  color: _getJerseyColor(color),
                   border: Border.all(
                     color: isSelected ? Colors.white : Colors.grey,
                     width: isSelected ? 3 : 1,
@@ -316,7 +596,13 @@ class _TeamsListPageState extends State<TeamsListPage> {
     int maxTeams = 1;
     if (!isAdmin && currentUid != null) {
       final limits = await UserPlanService.fetchLimits(currentUid);
-      maxTeams = limits['maxTeams'] as int;
+      _teamCreateCap = limits['createCap'] as int? ?? 1;
+      _teamAccessCap = limits['accessCap'] as int? ?? 1;
+      _hasEverPaidSubscription =
+          limits['hasEverPaidSubscription'] as bool? ?? false;
+      _isRetentionOnly = limits['isRetentionOnly'] as bool? ?? false;
+      _isTrialActive = limits['isTrialActive'] as bool? ?? false;
+      maxTeams = _teamCreateCap;
     }
 
     if (!isAdmin && ownedTeams.length >= maxTeams) {
@@ -327,7 +613,7 @@ class _TeamsListPageState extends State<TeamsListPage> {
           backgroundColor: const Color(0xFF1A1A2E),
           title: const Text('球隊上限', style: TextStyle(color: Colors.white)),
           content: Text(
-            '您目前最多可建立 $maxTeams 個球隊。\n如需更多配額，請聯絡管理員。',
+            '您目前最多可建立 $maxTeams 個球隊。\n如需更多配額，請升級或加購球隊名額。',
             style: const TextStyle(color: Colors.white70),
           ),
           actions: [
@@ -354,21 +640,21 @@ class _TeamsListPageState extends State<TeamsListPage> {
           title: const Text('新增球隊', style: TextStyle(color: Colors.white)),
           content: SingleChildScrollView(
             child: Column(
-              mainAxisSize:     MainAxisSize.min,
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextField(
                   controller: nameController,
-                  style:       const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    hintText:   '球隊名稱',
-                    hintStyle:  const TextStyle(color: Colors.white38),
+                    hintText: '球隊名稱',
+                    hintStyle: const TextStyle(color: Colors.white38),
                     prefixIcon: const Icon(Icons.group, color: Colors.white54),
-                    filled:     true,
-                    fillColor:  Colors.white.withValues(alpha:0.1),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.1),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:   BorderSide.none,
+                      borderSide: BorderSide.none,
                     ),
                   ),
                 ),
@@ -377,7 +663,7 @@ class _TeamsListPageState extends State<TeamsListPage> {
                 Row(
                   children: [
                     CircleAvatar(
-                      radius:          30,
+                      radius: 30,
                       backgroundColor: Colors.orange,
                       backgroundImage: fileImageOrNull(selectedLogoPath),
                       child: selectedLogoPath == null
@@ -389,44 +675,53 @@ class _TeamsListPageState extends State<TeamsListPage> {
                       onPressed: () async {
                         try {
                           final XFile? image = await _picker.pickImage(
-                              source: ImageSource.gallery);
+                            source: ImageSource.gallery,
+                          );
                           if (image != null) {
                             setDialogState(() => selectedLogoPath = image.path);
                           }
                         } catch (_) {}
                       },
-                      icon:  const Icon(Icons.add_photo_alternate),
+                      icon: const Icon(Icons.add_photo_alternate),
                       label: Text(selectedLogoPath != null ? '已選擇圖片' : '選擇標誌'),
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange),
+                        backgroundColor: Colors.orange,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
                 // FIX: extracted into _buildJerseyPicker — no more duplication
                 _buildJerseyPicker(
-                  label:     '主場球衣顏色:',
-                  selected:  selectedHomeJersey,
-                  onChanged: (c) => setDialogState(() => selectedHomeJersey = c),
+                  label: '主場球衣顏色:',
+                  selected: selectedHomeJersey,
+                  onChanged: (c) =>
+                      setDialogState(() => selectedHomeJersey = c),
                 ),
                 const SizedBox(height: 16),
                 _buildJerseyPicker(
-                  label:     '作客球衣顏色:',
-                  selected:  selectedAwayJersey,
-                  onChanged: (c) => setDialogState(() => selectedAwayJersey = c),
+                  label: '作客球衣顏色:',
+                  selected: selectedAwayJersey,
+                  onChanged: (c) =>
+                      setDialogState(() => selectedAwayJersey = c),
                 ),
               ],
             ),
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('取消')),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('取消'),
+            ),
             ElevatedButton(
               onPressed: () {
                 if (nameController.text.isNotEmpty) {
-                  _addTeam(nameController.text, selectedLogoPath,
-                      selectedHomeJersey, selectedAwayJersey);
+                  _addTeam(
+                    nameController.text,
+                    selectedLogoPath,
+                    selectedHomeJersey,
+                    selectedAwayJersey,
+                  );
                   Navigator.pop(ctx);
                 }
               },
@@ -440,8 +735,8 @@ class _TeamsListPageState extends State<TeamsListPage> {
   }
 
   void _showEditTeamDialog(int index) {
-    final team               = _teams[index];
-    final nameController     = TextEditingController(text: team['name']);
+    final team = _teams[index];
+    final nameController = TextEditingController(text: team['name']);
     String? selectedLogoPath = team['logo'];
     String? selectedHomeJersey = team['homeJersey'];
     String? selectedAwayJersey = team['awayJersey'];
@@ -454,21 +749,21 @@ class _TeamsListPageState extends State<TeamsListPage> {
           title: const Text('編輯球隊', style: TextStyle(color: Colors.white)),
           content: SingleChildScrollView(
             child: Column(
-              mainAxisSize:     MainAxisSize.min,
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 TextField(
                   controller: nameController,
-                  style:       const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    hintText:   '球隊名稱',
-                    hintStyle:  const TextStyle(color: Colors.white38),
+                    hintText: '球隊名稱',
+                    hintStyle: const TextStyle(color: Colors.white38),
                     prefixIcon: const Icon(Icons.group, color: Colors.white54),
-                    filled:     true,
-                    fillColor:  Colors.white.withValues(alpha:0.1),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.1),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide:   BorderSide.none,
+                      borderSide: BorderSide.none,
                     ),
                   ),
                 ),
@@ -476,7 +771,7 @@ class _TeamsListPageState extends State<TeamsListPage> {
                 Row(
                   children: [
                     CircleAvatar(
-                      radius:          30,
+                      radius: 30,
                       backgroundColor: Colors.orange,
                       backgroundImage: fileImageOrNull(selectedLogoPath),
                       child: selectedLogoPath == null
@@ -488,43 +783,53 @@ class _TeamsListPageState extends State<TeamsListPage> {
                       onPressed: () async {
                         try {
                           final XFile? image = await _picker.pickImage(
-                              source: ImageSource.gallery);
+                            source: ImageSource.gallery,
+                          );
                           if (image != null) {
                             setDialogState(() => selectedLogoPath = image.path);
                           }
                         } catch (_) {}
                       },
-                      icon:  const Icon(Icons.add_photo_alternate),
+                      icon: const Icon(Icons.add_photo_alternate),
                       label: Text(selectedLogoPath != null ? '更換圖片' : '選擇標誌'),
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange),
+                        backgroundColor: Colors.orange,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 24),
                 _buildJerseyPicker(
-                  label:     '主場球衣:',
-                  selected:  selectedHomeJersey,
-                  onChanged: (c) => setDialogState(() => selectedHomeJersey = c),
+                  label: '主場球衣:',
+                  selected: selectedHomeJersey,
+                  onChanged: (c) =>
+                      setDialogState(() => selectedHomeJersey = c),
                 ),
                 const SizedBox(height: 16),
                 _buildJerseyPicker(
-                  label:     '作客球衣:',
-                  selected:  selectedAwayJersey,
-                  onChanged: (c) => setDialogState(() => selectedAwayJersey = c),
+                  label: '作客球衣:',
+                  selected: selectedAwayJersey,
+                  onChanged: (c) =>
+                      setDialogState(() => selectedAwayJersey = c),
                 ),
               ],
             ),
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('取消')),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('取消'),
+            ),
             ElevatedButton(
               onPressed: () {
                 if (nameController.text.isNotEmpty) {
-                  _updateTeam(index, nameController.text, selectedLogoPath,
-                      selectedHomeJersey, selectedAwayJersey);
+                  _updateTeam(
+                    index,
+                    nameController.text,
+                    selectedLogoPath,
+                    selectedHomeJersey,
+                    selectedAwayJersey,
+                  );
                   Navigator.pop(ctx);
                 }
               },
@@ -542,31 +847,33 @@ class _TeamsListPageState extends State<TeamsListPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A2E),
-        title: Text('$teamName 邀請碼',
-            style: const TextStyle(color: Colors.white)),
+        title: Text(
+          '$teamName 邀請碼',
+          style: const TextStyle(color: Colors.white),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color:        Colors.orange.withValues(alpha:0.2),
+                color: Colors.orange.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 inviteCode,
                 style: const TextStyle(
-                  fontSize:    32,
-                  fontWeight:  FontWeight.bold,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
                   letterSpacing: 4,
-                  color:       Colors.orange,
+                  color: Colors.orange,
                 ),
               ),
             ),
             const SizedBox(height: 16),
             const Text(
               '分享呢個邀請碼比隊友，等佢哋加入球隊',
-              style:     TextStyle(color: Colors.white70),
+              style: TextStyle(color: Colors.white70),
               textAlign: TextAlign.center,
             ),
           ],
@@ -576,15 +883,16 @@ class _TeamsListPageState extends State<TeamsListPage> {
             onPressed: () {
               Clipboard.setData(ClipboardData(text: inviteCode));
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('邀請碼已複製')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('邀請碼已複製')));
             },
             child: const Text('複製', style: TextStyle(color: Colors.orange)),
           ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('關閉')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('關閉'),
+          ),
         ],
       ),
     );
@@ -625,49 +933,78 @@ class _TeamsListPageState extends State<TeamsListPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('輸入教練分享的6位邀請碼',
-                  style: TextStyle(color: Colors.white70, fontSize: 13)),
+              const Text(
+                '輸入教練分享的6位邀請碼',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
               const SizedBox(height: 16),
               TextField(
                 controller: codeCtrl,
-                style: const TextStyle(color: Colors.orange, fontSize: 24,
-                    fontWeight: FontWeight.bold, letterSpacing: 6),
+                style: const TextStyle(
+                  color: Colors.orange,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 6,
+                ),
                 textAlign: TextAlign.center,
                 maxLength: 6,
                 textCapitalization: TextCapitalization.characters,
                 decoration: InputDecoration(
                   hintText: 'XXXXXX',
-                  hintStyle: const TextStyle(color: Colors.white24, fontSize: 24, letterSpacing: 6),
+                  hintStyle: const TextStyle(
+                    color: Colors.white24,
+                    fontSize: 24,
+                    letterSpacing: 6,
+                  ),
                   filled: true,
-                  fillColor: Colors.white.withValues(alpha:0.1),
+                  fillColor: Colors.white.withValues(alpha: 0.1),
                   counterText: '',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.orange)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.orange),
+                  ),
                 ),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx),
-                child: const Text('取消', style: TextStyle(color: Colors.white70))),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('取消', style: TextStyle(color: Colors.white70)),
+            ),
             ElevatedButton(
-              onPressed: isLoading ? null : () async {
-                final code = codeCtrl.text.trim().toUpperCase();
-                if (code.length != 6) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('請輸入6位邀請碼')));
-                  return;
-                }
-                setDS(() => isLoading = true);
-                final success = await _joinTeamByCode(code);
-                if (success && mounted) Navigator.pop(ctx);
-                else if (mounted) setDS(() => isLoading = false);
-              },
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      final code = codeCtrl.text.trim().toUpperCase();
+                      if (code.length != 6) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('請輸入6位邀請碼')),
+                        );
+                        return;
+                      }
+                      setDS(() => isLoading = true);
+                      final success = await _joinTeamByCode(code);
+                      if (success && ctx.mounted) {
+                        Navigator.pop(ctx);
+                      } else if (ctx.mounted) {
+                        setDS(() => isLoading = false);
+                      }
+                    },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
               child: isLoading
-                  ? const SizedBox(width: 20, height: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
                   : const Text('加入'),
             ),
           ],
@@ -693,13 +1030,13 @@ class _TeamsListPageState extends State<TeamsListPage> {
           .collection('members')
           .doc(memberUid)
           .set({
-        'uid': memberUid,
-        'name': memberName,
-        'email': memberEmail,
-        'role': 'viewer',
-        'joinedAt': FieldValue.serverTimestamp(),
-        'inviteCode': inviteCode,
-      });
+            'uid': memberUid,
+            'name': memberName,
+            'email': memberEmail,
+            'role': 'viewer',
+            'joinedAt': FieldValue.serverTimestamp(),
+            'inviteCode': inviteCode,
+          });
       debugPrint('成員記錄已添加: $memberUid');
     } catch (e) {
       debugPrint('添加成員記錄失敗: $e');
@@ -711,17 +1048,25 @@ class _TeamsListPageState extends State<TeamsListPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Demo模式不支援加入球隊，請先登入')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Demo模式不支援加入球隊，請先登入')));
       }
       return false;
     }
     try {
-      final codeDoc = await FirebaseFirestore.instance.collection('inviteCodes').doc(code).get();
+      final codeDoc = await FirebaseFirestore.instance
+          .collection('inviteCodes')
+          .doc(code)
+          .get();
       if (!codeDoc.exists) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('邀請碼無效，請確認後再試'), backgroundColor: Colors.red));
+            const SnackBar(
+              content: Text('邀請碼無效，請確認後再試'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
         return false;
       }
@@ -731,24 +1076,33 @@ class _TeamsListPageState extends State<TeamsListPage> {
       final ownerName = (data['ownerName'] as String?) ?? '';
       if (ownerUid == user.uid) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('呢個係你自己既球隊')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('呢個係你自己既球隊')));
         }
         return false;
       }
-      final alreadyJoined = _teams.any((t) => t['ownerUid'] == ownerUid && t['name'] == teamName);
+      final alreadyJoined = _teams.any(
+        (t) => t['ownerUid'] == ownerUid && t['name'] == teamName,
+      );
       if (alreadyJoined) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('你已經加入咗呢個球隊')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('你已經加入咗呢個球隊')));
         }
         return false;
       }
       setState(() {
         _teams.add({
-          'name': teamName, 'logo': null, 'inviteCode': code,
-          'homeJersey': null, 'awayJersey': null,
-          'ownerUid': ownerUid, 'ownerName': ownerName, 'isJoined': true,
+          'name': teamName,
+          'logo': null,
+          'inviteCode': code,
+          'homeJersey': null,
+          'awayJersey': null,
+          'ownerUid': ownerUid,
+          'ownerName': ownerName,
+          'isJoined': true,
         });
       });
       await _saveTeamsToCloud();
@@ -764,8 +1118,9 @@ class _TeamsListPageState extends State<TeamsListPage> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('成功加入「$teamName」！')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('成功加入「$teamName」！')));
       }
       return true;
     } on FirebaseException catch (e) {
@@ -778,17 +1133,129 @@ class _TeamsListPageState extends State<TeamsListPage> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(msg), backgroundColor: Colors.red));
+          SnackBar(content: Text(msg), backgroundColor: Colors.red),
+        );
       }
       return false;
     } catch (e) {
       debugPrint('Join team error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('發生錯誤，請稍後再試'), backgroundColor: Colors.red));
+          const SnackBar(
+            content: Text('發生錯誤，請稍後再試'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
       return false;
     }
+  }
+
+  void _showProfileDialog() {
+    final user = FirebaseAuth.instance.currentUser;
+    final nameCtrl = TextEditingController(text: user?.displayName ?? '');
+    final posCtrl = TextEditingController();
+    final heightCtrl = TextEditingController();
+    final weightCtrl = TextEditingController();
+    final numberCtrl = TextEditingController();
+
+    // Load saved profile from SharedPreferences
+    SharedPreferences.getInstance().then((prefs) {
+      posCtrl.text = prefs.getString('profile_position') ?? '';
+      heightCtrl.text = prefs.getString('profile_height') ?? '';
+      weightCtrl.text = prefs.getString('profile_weight') ?? '';
+      numberCtrl.text = prefs.getString('profile_number') ?? '';
+    });
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          '個人資料',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _profileField(nameCtrl, '姓名'),
+              const SizedBox(height: 10),
+              _profileField(
+                numberCtrl,
+                '球衣號碼',
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 10),
+              _profileField(posCtrl, '位置 (e.g. PG/SG)'),
+              const SizedBox(height: 10),
+              _profileField(
+                heightCtrl,
+                '身高 (cm)',
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 10),
+              _profileField(
+                weightCtrl,
+                '體重 (kg)',
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            onPressed: () async {
+              final name = nameCtrl.text.trim();
+              if (name.isNotEmpty && user != null) {
+                await user.updateDisplayName(name);
+              }
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('profile_position', posCtrl.text.trim());
+              await prefs.setString('profile_height', heightCtrl.text.trim());
+              await prefs.setString('profile_weight', weightCtrl.text.trim());
+              await prefs.setString('profile_number', numberCtrl.text.trim());
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('個人資料已儲存')));
+              }
+            },
+            child: const Text('儲存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _profileField(
+    TextEditingController ctrl,
+    String label, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: ctrl,
+      style: const TextStyle(color: Colors.white),
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white70),
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.08),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Colors.orange),
+        ),
+      ),
+    );
   }
 
   Future<void> _logout() async {
@@ -818,10 +1285,11 @@ class _TeamsListPageState extends State<TeamsListPage> {
               // 用戶資訊
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF0F0F1E),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
                 ),
+                decoration: const BoxDecoration(color: Color(0xFF0F0F1E)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -833,7 +1301,11 @@ class _TeamsListPageState extends State<TeamsListPage> {
                     const SizedBox(height: 12),
                     Text(
                       widget.currentUserName,
-                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -842,16 +1314,34 @@ class _TeamsListPageState extends State<TeamsListPage> {
               // 加入球隊
               ListTile(
                 leading: const Icon(Icons.group_add, color: Colors.orange),
-                title: const Text('加入球隊', style: TextStyle(color: Colors.white)),
+                title: const Text(
+                  '加入球隊',
+                  style: TextStyle(color: Colors.white),
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   _showJoinTeamDialog();
                 },
               ),
+              // 個人資料
+              ListTile(
+                leading: const Icon(Icons.person_outline, color: Colors.orange),
+                title: const Text(
+                  '個人資料',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showProfileDialog();
+                },
+              ),
               // 重新整理
               ListTile(
                 leading: const Icon(Icons.refresh, color: Colors.white70),
-                title: const Text('重新整理', style: TextStyle(color: Colors.white)),
+                title: const Text(
+                  '重新整理',
+                  style: TextStyle(color: Colors.white),
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   _loadTeamsFromCloud();
@@ -859,11 +1349,20 @@ class _TeamsListPageState extends State<TeamsListPage> {
               ),
               // 訂閱方案
               ListTile(
-                leading: const Icon(Icons.workspace_premium, color: Colors.orange),
-                title: const Text('訂閱方案', style: TextStyle(color: Colors.white)),
+                leading: const Icon(
+                  Icons.workspace_premium,
+                  color: Colors.orange,
+                ),
+                title: const Text(
+                  '訂閱方案',
+                  style: TextStyle(color: Colors.white),
+                ),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionPage()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SubscriptionPage()),
+                  );
                 },
               ),
               // 設定
@@ -872,7 +1371,10 @@ class _TeamsListPageState extends State<TeamsListPage> {
                 title: const Text('設定', style: TextStyle(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsPage()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsPage()),
+                  );
                 },
               ),
               const Spacer(),
@@ -897,165 +1399,262 @@ class _TeamsListPageState extends State<TeamsListPage> {
         foregroundColor: Colors.white,
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.orange))
+          ? const Center(child: CircularProgressIndicator(color: Colors.orange))
           : _teams.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.group_off,
-                          size: 80, color: Colors.white.withValues(alpha:0.3)),
-                      const SizedBox(height: 16),
-                      const Text('暫時未有球隊',
-                          style: TextStyle(color: Colors.white70, fontSize: 18)),
-                      const SizedBox(height: 8),
-                      const Text('撳下面按鈕新增球隊',
-                          style: TextStyle(color: Colors.white38)),
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.group_off,
+                    size: 80,
+                    color: Colors.white.withValues(alpha: 0.3),
                   ),
-                )
-              : ListView.builder(
-                  padding:    const EdgeInsets.all(16),
-                  itemCount:  _teams.length,
-                  itemBuilder: (context, index) {
-                    final team     = _teams[index];
-                    final logoImage = fileImageOrNull(team['logo'] as String?);
+                  const SizedBox(height: 16),
+                  const Text(
+                    '暫時未有球隊',
+                    style: TextStyle(color: Colors.white70, fontSize: 18),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '撳下面按鈕新增球隊',
+                    style: TextStyle(color: Colors.white38),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _teams.length,
+              itemBuilder: (context, index) {
+                final team = _teams[index];
+                final ownedTeamRank = _ownedTeamRankForIndex(index);
+                final logoImage = fileImageOrNull(team['logo'] as String?);
 
-                    return Dismissible(
-                      key:       ValueKey(team['inviteCode']),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding:   const EdgeInsets.only(right: 20),
-                        decoration: BoxDecoration(
-                          color:        Colors.red,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.delete, color: Colors.white),
+                return Dismissible(
+                  key: ValueKey(team['inviteCode']),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
+                  confirmDismiss: (_) => _deleteTeam(index),
+                  child: Card(
+                    color: const Color(0xFF1A1A2E),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: Colors.orange, width: 0.5),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
                       ),
-                      confirmDismiss: (_) => _deleteTeam(index),
-                      child: Card(
-                        color:  const Color(0xFF1A1A2E),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: const BorderSide(
-                              color: Colors.orange, width: 0.5),
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.orange,
+                        backgroundImage: logoImage,
+                        child: logoImage == null
+                            ? const Icon(Icons.group, color: Colors.white)
+                            : null,
+                      ),
+                      title: Text(
+                        team['name'] as String,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
                         ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          leading: CircleAvatar(
-                            backgroundColor:  Colors.orange,
-                            backgroundImage: logoImage,
-                            child: logoImage == null
-                                ? const Icon(Icons.group, color: Colors.white)
-                                : null,
-                          ),
-                          title: Text(
-                            team['name'] as String,
-                            style: const TextStyle(
-                                color: Colors.white, fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (team['isJoined'] == true)
-                                Text('👥 加入自: ${team['ownerName'] ?? '其他教練'}',
-                                    style: const TextStyle(color: Colors.orange, fontSize: 12)),
-                              Text('邀請碼: ${team['inviteCode']}',
-                                  style: const TextStyle(
-                                      color: Colors.white54, fontSize: 12)),
-                              if (team['homeJersey'] != null ||
-                                  team['awayJersey'] != null)
-                                Row(
-                                  children: [
-                                    if (team['homeJersey'] != null) ...[
-                                      Container(
-                                        width: 11, height: 11,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: _getJerseyColor(team['homeJersey'] as String),
-                                          border: Border.all(color: Colors.white30, width: 0.5),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 3),
-                                      const Text('主  ', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                                    ],
-                                    if (team['awayJersey'] != null) ...[
-                                      Container(
-                                        width: 11, height: 11,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: _getJerseyColor(team['awayJersey'] as String),
-                                          border: Border.all(color: Colors.white30, width: 0.5),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 3),
-                                      const Text('客', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                                    ],
-                                  ],
-                                ),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (team['isJoined'] != true) ...[
-                                IconButton(
-                                  icon:    const Icon(Icons.edit, color: Colors.white54),
-                                  onPressed: () => _showEditTeamDialog(index),
-                                  tooltip: '編輯球隊',
-                                ),
-                                IconButton(
-                                  icon:    const Icon(Icons.share, color: Colors.orange),
-                                  onPressed: () => _showInviteCodeDialog(
-                                      team['name'] as String,
-                                      team['inviteCode'] as String),
-                                  tooltip: '邀請碼',
-                                ),
-                              ],
-                              const Icon(Icons.chevron_right,
-                                  color: Colors.white38),
-                            ],
-                          ),
-                          onTap: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => TeamDetailPage(
-                                  teamName:        team['name'] as String,
-                                  inviteCode:      team['inviteCode'] as String?,
-                                  logoPath:        team['logo'] as String?,
-                                  homeJerseyColor: team['homeJersey'] as String?,
-                                  awayJerseyColor: team['awayJersey'] as String?,
-                                  ownerUid:        team['ownerUid'] as String?,
-                                  isJoined:        team['isJoined'] == true,
-                                  userRole:        null,
-                                  allTeams:        _teams,
-                                ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (team['isJoined'] == true)
+                            Text(
+                              '👥 加入自: ${team['ownerName'] ?? '其他教練'}',
+                              style: const TextStyle(
+                                color: Colors.orange,
+                                fontSize: 12,
                               ),
-                            );
-                            _loadTeamsFromCloud();
-                            AdService.showInterstitialAd();
-                          },
-                        ),
+                            ),
+                          Text(
+                            '邀請碼: ${team['inviteCode']}',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
+                          ),
+                          if (team['locked'] == true)
+                            Text(
+                              _hasEverPaidSubscription
+                                  ? '此球隊屬於已保留球隊，恢復訂閱後可重新完整使用'
+                                  : '此球隊目前已鎖定，需完成付費方案先可重新存取',
+                              style: const TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 12,
+                              ),
+                            ),
+                          if (team['locked'] != true &&
+                              _isTrialActive &&
+                              team['isJoined'] != true &&
+                              ownedTeamRank != null &&
+                              ownedTeamRank >= _teamCreateCap)
+                            const Text(
+                              '此球隊目前屬於試用額外名額，試用結束後如未成功付款將被鎖定',
+                              style: TextStyle(
+                                color: Colors.amberAccent,
+                                fontSize: 12,
+                              ),
+                            ),
+                          if (team['homeJersey'] != null ||
+                              team['awayJersey'] != null)
+                            Row(
+                              children: [
+                                if (team['homeJersey'] != null) ...[
+                                  Container(
+                                    width: 11,
+                                    height: 11,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: _getJerseyColor(
+                                        team['homeJersey'] as String,
+                                      ),
+                                      border: Border.all(
+                                        color: Colors.white30,
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  const Text(
+                                    '主  ',
+                                    style: TextStyle(
+                                      color: Colors.white38,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                                if (team['awayJersey'] != null) ...[
+                                  Container(
+                                    width: 11,
+                                    height: 11,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: _getJerseyColor(
+                                        team['awayJersey'] as String,
+                                      ),
+                                      border: Border.all(
+                                        color: Colors.white30,
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  const Text(
+                                    '客',
+                                    style: TextStyle(
+                                      color: Colors.white38,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                        ],
                       ),
-                    );
-                  },
-                ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (team['isJoined'] != true) ...[
+                            IconButton(
+                              icon: const Icon(
+                                Icons.edit,
+                                color: Colors.white54,
+                              ),
+                              onPressed: () => _showEditTeamDialog(index),
+                              tooltip: '編輯球隊',
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.share,
+                                color: Colors.orange,
+                              ),
+                              onPressed: () => _showInviteCodeDialog(
+                                team['name'] as String,
+                                team['inviteCode'] as String,
+                              ),
+                              tooltip: '邀請碼',
+                            ),
+                          ],
+                          const Icon(
+                            Icons.chevron_right,
+                            color: Colors.white38,
+                          ),
+                        ],
+                      ),
+                      onTap: () async {
+                        if (team['locked'] == true) {
+                          await _showLockedTeamDialog(team['name'] as String);
+                          return;
+                        }
+                        String? userRole;
+                        if (team['isJoined'] == true) {
+                          try {
+                            final user = FirebaseAuth.instance.currentUser;
+                            final ownerUid = team['ownerUid'] as String?;
+                            final inviteCode = team['inviteCode'] as String?;
+                            if (user != null &&
+                                ownerUid != null &&
+                                inviteCode != null) {
+                              final memberDoc = await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(ownerUid)
+                                  .collection('teams')
+                                  .doc(inviteCode)
+                                  .collection('members')
+                                  .doc(user.uid)
+                                  .get();
+                              userRole = memberDoc.data()?['role'] as String?;
+                            }
+                          } catch (_) {}
+                        }
+                        if (!context.mounted) return;
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TeamDetailPage(
+                              teamName: team['name'] as String,
+                              inviteCode: team['inviteCode'] as String?,
+                              logoPath: team['logo'] as String?,
+                              homeJerseyColor: team['homeJersey'] as String?,
+                              awayJerseyColor: team['awayJersey'] as String?,
+                              ownerUid: team['ownerUid'] as String?,
+                              isJoined: team['isJoined'] == true,
+                              userRole: userRole,
+                              allTeams: _teams,
+                            ),
+                          ),
+                        );
+                        _loadTeamsFromCloud();
+                        AdService.showInterstitialAd();
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed:       _showAddTeamDialog,
+        onPressed: _showAddTeamDialog,
         backgroundColor: Colors.orange,
-        icon:  const Icon(Icons.add),
+        icon: const Icon(Icons.add),
         label: const Text('新增球隊'),
       ),
       bottomNavigationBar: _bannerAd != null
-          ? SizedBox(
-              height: 50,
-              child: AdWidget(ad: _bannerAd!),
-            )
+          ? SizedBox(height: 50, child: AdWidget(ad: _bannerAd!))
           : null,
     );
   }

@@ -101,12 +101,6 @@ class _TrainingDrillPageState extends State<TrainingDrillPage> {
         .where((p) => attendance[p['name'] as String] == true)
         .toList();
 
-    // Non-editors only see themselves (if present)
-    if (!widget.canEdit && !widget.isAdmin) {
-      return presentPlayers
-          .where((p) => p['name'] == _currentUserName)
-          .toList();
-    }
     return presentPlayers;
   }
 

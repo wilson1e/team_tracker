@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'main.dart' show firebaseReady;
 
+import 'services/firebase_messaging_service.dart';
 import 'teams_list_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -217,6 +218,12 @@ class _LoginPageState extends State<LoginPage> {
 
       // Ensure doc exists (handles users who registered before this fix)
       await _upsertUserDoc(uid: uid, email: email, name: name, role: 'player');
+      try {
+        await FirebaseMessagingService().syncTokenForCurrentUser();
+      } catch (e, st) {
+        debugPrint('Post-login token sync failed: $e');
+        debugPrintStack(stackTrace: st);
+      }
 
       await _saveCredentials(email, password);
       _navigateToHome(email: email, name: name);
@@ -266,6 +273,12 @@ class _LoginPageState extends State<LoginPage> {
 
       // FIX: use set (with merge) keyed by UID, not add() with auto-ID
       await _upsertUserDoc(uid: uid, email: email, name: name, role: 'player');
+      try {
+        await FirebaseMessagingService().syncTokenForCurrentUser();
+      } catch (e, st) {
+        debugPrint('Post-register token sync failed: $e');
+        debugPrintStack(stackTrace: st);
+      }
 
       _navigateToHome(email: email, name: name);
     } on FirebaseAuthException catch (e) {

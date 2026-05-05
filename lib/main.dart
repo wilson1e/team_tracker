@@ -9,6 +9,7 @@ import 'ad_service.dart';
 import 'firebase_options.dart';
 import 'login_page.dart';
 import 'platform_service.dart';
+import 'services/firebase_messaging_service.dart';
 import 'services/storage_service.dart';
 import 'theme_service.dart';
 
@@ -34,6 +35,13 @@ void main() async {
     );
     debugPrint('=== main.dart: Firebase INIT SUCCESS ===');
     firebaseReady.complete(true);
+    try {
+      await FirebaseMessagingService().initialize();
+      debugPrint('=== main.dart: Firebase Messaging INIT SUCCESS ===');
+    } catch (e, st) {
+      debugPrint('Firebase Messaging init failed: $e');
+      debugPrintStack(stackTrace: st);
+    }
   } catch (e) {
     debugPrint('Firebase init failed: $e');
     firebaseReady.complete(false);

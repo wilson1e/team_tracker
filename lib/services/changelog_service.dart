@@ -13,9 +13,11 @@ class ChangelogService {
   static const _seenKey = 'changelog_seen_version';
 
   // ── 每次更新版本時修改這裡 ──────────────────────────────────────
-  static const String currentVersion = '1.0.0+19';
+  static const String currentVersion = '1.0.0+25';
 
   static const List<ChangelogEntry> entries = [
+    ChangelogEntry(Icons.login,            Colors.orange,            '修正登入問題：Firebase 推播初始化失敗時不再阻止用戶登入，避免誤顯示「Firebase 無法連接」'),
+    ChangelogEntry(Icons.lock_clock,       Colors.orange,            '訂閱保留權邏輯更新：試用期內可暫時使用額外球隊；若未曾成功付款，取消後將鎖定超出免費版上限的球隊；曾成功付款則可保留既有球隊'),
     ChangelogEntry(Icons.shopping_cart, Colors.orange,            'App Store 內購正式啟用：訂閱標準版／專業版及球隊擴展包，可於設定 → 訂閱方案直接購買'),
     ChangelogEntry(Icons.search,           Colors.orange,            '場地關鍵字搜索：比賽、訓練及日常練習的場地選擇改為搜索面板，即時過濾並保留地區分組'),
     ChangelogEntry(Icons.lock_reset,       Colors.blue,              '忘記密碼：登入頁加入「忘記密碼？」按鈕，輸入 Email 即可收到重設密碼郵件'),

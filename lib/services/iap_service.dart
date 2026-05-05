@@ -6,11 +6,12 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 
 /// Product IDs — must match App Store Connect exactly
 class IAPProductIds {
-  static const String standardMonthly = 'com.basketball.team.tracker.standard_monthly';
-  static const String proMonthly      = 'com.basketball.team.tracker.pro_monthly';
-  static const String packTeam1       = 'com.basketball.team.tracker.pack_team_1';
-  static const String packTeam3       = 'com.basketball.team.tracker.pack_team_3';
-  static const String packTeam5       = 'com.basketball.team.tracker.pack_team_5';
+  static const String standardMonthly =
+      'com.basketball.team.tracker.standard_monthly';
+  static const String proMonthly = 'com.basketball.team.tracker.pro_monthly';
+  static const String packTeam1 = 'com.basketball.team.tracker.pack_team_1';
+  static const String packTeam3 = 'com.basketball.team.tracker.pack_team_3';
+  static const String packTeam5 = 'com.basketball.team.tracker.pack_team_5';
 
   static const Set<String> all = {
     standardMonthly,
@@ -21,7 +22,7 @@ class IAPProductIds {
   };
 
   static const Set<String> subscriptions = {standardMonthly, proMonthly};
-  static const Set<String> packs         = {packTeam1, packTeam3, packTeam5};
+  static const Set<String> packs = {packTeam1, packTeam3, packTeam5};
 }
 
 class IAPService {
@@ -37,8 +38,8 @@ class IAPService {
 
   // Purchase state callbacks
   void Function(PurchaseDetails)? onPurchaseSuccess;
-  void Function(String error)?     onPurchaseError;
-  void Function()?                 onPurchasePending;
+  void Function(String error)? onPurchaseError;
+  void Function()? onPurchasePending;
 
   bool _initialized = false;
 
@@ -88,7 +89,11 @@ class IAPService {
       onPurchaseError?.call('找不到商品，請稍後再試');
       return;
     }
-    final param = PurchaseParam(productDetails: product);
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final param = PurchaseParam(
+      productDetails: product,
+      applicationUserName: uid,
+    );
     await _iap.buyNonConsumable(purchaseParam: param);
   }
 
@@ -99,14 +104,20 @@ class IAPService {
       onPurchaseError?.call('找不到商品，請稍後再試');
       return;
     }
-    final param = PurchaseParam(productDetails: product);
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final param = PurchaseParam(
+      productDetails: product,
+      applicationUserName: uid,
+    );
     // Packs are treated as non-consumable (permanent team slot additions)
     await _iap.buyNonConsumable(purchaseParam: param);
   }
 
   void _onPurchaseUpdate(List<PurchaseDetails> purchases) {
     for (final purchase in purchases) {
-      debugPrint('[IAP] Purchase update: ${purchase.productID} status=${purchase.status}');
+      debugPrint(
+        '[IAP] Purchase update: ${purchase.productID} status=${purchase.status}',
+      );
       switch (purchase.status) {
         case PurchaseStatus.pending:
           onPurchasePending?.call();
@@ -153,15 +164,29 @@ class IAPService {
     final ref = FirebaseFirestore.instance.collection('users').doc(uid);
 
     if (productId == IAPProductIds.standardMonthly) {
-      await ref.set({'plan': 'standard'}, SetOptions(merge: true));
+      await ref.set({
+        'plan': 'standard',
+        'currentSubscriptionCap': 3,
+        'subscriptionProductId': productId,
+      }, SetOptions(merge: true));
     } else if (productId == IAPProductIds.proMonthly) {
-      await ref.set({'plan': 'pro'}, SetOptions(merge: true));
+      await ref.set({
+        'plan': 'pro',
+        'currentSubscriptionCap': 5,
+        'subscriptionProductId': productId,
+      }, SetOptions(merge: true));
     } else if (productId == IAPProductIds.packTeam1) {
-      await ref.set({'packTeams': FieldValue.increment(1)}, SetOptions(merge: true));
+      await ref.set({
+        'packTeams': FieldValue.increment(1),
+      }, SetOptions(merge: true));
     } else if (productId == IAPProductIds.packTeam3) {
-      await ref.set({'packTeams': FieldValue.increment(3)}, SetOptions(merge: true));
+      await ref.set({
+        'packTeams': FieldValue.increment(3),
+      }, SetOptions(merge: true));
     } else if (productId == IAPProductIds.packTeam5) {
-      await ref.set({'packTeams': FieldValue.increment(5)}, SetOptions(merge: true));
+      await ref.set({
+        'packTeams': FieldValue.increment(5),
+      }, SetOptions(merge: true));
     }
   }
 
